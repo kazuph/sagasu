@@ -1,0 +1,2 @@
+$ ps -axo pid=,etime=,command=
+42575       00:16 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch

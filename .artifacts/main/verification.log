@@ -1,0 +1,25 @@
+# swift test
+Test Suite 'All tests' started at 2026-04-27 17:00:39.876.
+Test Suite 'All tests' passed at 2026-04-27 17:00:39.877.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1400
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test parsesNotesPrefixCaseInsensitively() started.
+◇ Test parsesFilePrefix() started.
+◇ Test parsesClipboardPrefix() started.
+◇ Test defaultsToApplications() started.
+✔ Test defaultsToApplications() passed after 0.001 seconds.
+✔ Test parsesNotesPrefixCaseInsensitively() passed after 0.001 seconds.
+✔ Test parsesFilePrefix() passed after 0.001 seconds.
+✔ Test parsesClipboardPrefix() passed after 0.001 seconds.
+✔ Test run with 4 tests in 0 suites passed after 0.001 seconds.
+
+# launcher runtime
+windowCount=1
+
+# clipboard persistence
+[{"id":"2B4F6ACB-A0EB-4A54-A267-34FAB22BACCB","capturedAt":798969641.649148,"text":"artifact clipboard 1777276841"},{"id":"356962C8-292B-4530-95CA-0845F03EE345","capturedAt":798969071.371504,"text":"sagasu test clipboard 1777276270"}]
+# notes access
+
+# stderr

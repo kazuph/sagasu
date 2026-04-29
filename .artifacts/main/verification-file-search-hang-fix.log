@@ -1,0 +1,24 @@
+$ swift test
+Test Suite 'All tests' started at 2026-04-29 07:26:50.169.
+Test Suite 'All tests' passed at 2026-04-29 07:26:50.170.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1400
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test shellCommandRunnerHandlesLargeOutput() started.
+◇ Test parsesNotesPrefixCaseInsensitively() started.
+◇ Test defaultsToApplications() started.
+◇ Test parsesClipboardPrefix() started.
+◇ Test parsesFilePrefix() started.
+✔ Test parsesFilePrefix() passed after 0.001 seconds.
+✔ Test defaultsToApplications() passed after 0.001 seconds.
+✔ Test parsesNotesPrefixCaseInsensitively() passed after 0.001 seconds.
+✔ Test parsesClipboardPrefix() passed after 0.001 seconds.
+✔ Test shellCommandRunnerHandlesLargeOutput() passed after 0.010 seconds.
+✔ Test run with 5 tests in 0 suites passed after 0.010 seconds.
+
+$ ps -p 13979 -o pid=,command=
+13979 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch
+
+$ ps -p 19630 -o pid=,command=
+19630 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch

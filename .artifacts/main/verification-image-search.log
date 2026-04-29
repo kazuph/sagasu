@@ -1,0 +1,32 @@
+# image search verification
+
+## on-screen windows
+count=1
+{
+    Height = 404;
+    Width = 704;
+    X = 620;
+    Y = 113;
+}
+
+## png query sample
+/Users/kazuph/Downloads/wardrobe_photo_33546130_1777356207418_33546130_photo_4ca8af82.png
+/Users/kazuph/Downloads/wardrobe_photo_1393665317_1777356463276_1393665317_photo_3d31f91c.png
+/Users/kazuph/Downloads/wardrobe_photo_328690486_1777357206164_328690486_photo_25199367.png
+/Users/kazuph/Downloads/wardrobe_photo_340954031_1777360068736_340954031_photo_e3ae5cde.png
+/Users/kazuph/Downloads/wardrobe_photo_1714158414_1777360139871_1714158414_photo_e1c5dbae.png
+/Users/kazuph/Downloads/wardrobe_photo_58268841_1777366275851_58268841_photo_779e252f.png
+/Users/kazuph/Downloads/wardrobe_photo_2130798556_1777366302093_2130798556_photo_822fd40c.png
+/Users/kazuph/Downloads/wardrobe_photo_414878184_1777366329672_414878184_photo_f550f19a.png
+/Users/kazuph/Downloads/wardrobe_photo_269909187_1777366357240_269909187_photo_f89fc336.png
+/Users/kazuph/Downloads/wardrobe_photo_16469910_1777366384810_16469910_photo_99a384ac.png
+/Users/kazuph/Downloads/wardrobe_comic_1315744436_1777332045828_1315744436_comic_8c517963.png
+/Users/kazuph/Downloads/wardrobe_ukiyoe_1524331348_1777332019947_1524331348_ukiyoe_e64597a1.png
+/Users/kazuph/Downloads/wardrobe_gogh_538346309_1777331995434_538346309_gogh_45737e98.png
+/Users/kazuph/Downloads/wardrobe_watercolor_2030241075_1777331946677_2030241075_watercolor_25800443.png
+/Users/kazuph/Downloads/wardrobe_picasso_895289196_1777331971039_895289196_picasso_b807c40a.png
+/Users/kazuph/Downloads/wardrobe_pencil_436711433_1777331922336_436711433_pencil_2602d4ae.png
+/Users/kazuph/Downloads/wardrobe_photo_255711004_1777331898101_255711004_photo_574be319.png
+/Users/kazuph/Downloads/wardrobe_anime_1489726652_1777331873701_1489726652_anime_a6d302af.png
+/Users/kazuph/Downloads/wardrobe_jojo_1420623531_1777335023968_1420623531_jojo_0850b2e6.png
+/Users/kazuph/Downloads/ChatGPT Image 2026年4月27日 04_54_57.png

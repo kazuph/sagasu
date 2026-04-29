@@ -1,0 +1,69 @@
+# launcher fix verification
+
+## process
+43548 ./.build/arm64-apple-macosx/debug/Sagasu --show-on-launch
+
+## window dump
+count=10
+["kCGWindowOwnerName": Sagasu, "kCGWindowMemoryUsage": 2368, "kCGWindowBounds": {
+    Height = 30;
+    Width = 1680;
+    X = 1470;
+    Y = "-12";
+}, "kCGWindowStoreType": 1, "kCGWindowNumber": 994, "kCGWindowLayer": 0, "kCGWindowSharingState": 0, "kCGWindowOwnerPID": 43548, "kCGWindowAlpha": 1]
+["kCGWindowBounds": {
+    Height = 30;
+    Width = 1680;
+    X = 1470;
+    Y = "-12";
+}, "kCGWindowAlpha": 1, "kCGWindowOwnerPID": 43548, "kCGWindowOwnerName": Sagasu, "kCGWindowNumber": 993, "kCGWindowMemoryUsage": 2368, "kCGWindowLayer": 0, "kCGWindowStoreType": 1, "kCGWindowSharingState": 0]
+["kCGWindowMemoryUsage": 2368, "kCGWindowOwnerName": Sagasu, "kCGWindowAlpha": 1, "kCGWindowNumber": 992, "kCGWindowBounds": {
+    Height = 30;
+    Width = 1680;
+    X = 1470;
+    Y = "-12";
+}, "kCGWindowOwnerPID": 43548, "kCGWindowStoreType": 1, "kCGWindowLayer": 0, "kCGWindowSharingState": 0]
+["kCGWindowNumber": 991, "kCGWindowStoreType": 1, "kCGWindowOwnerPID": 43548, "kCGWindowSharingState": 0, "kCGWindowAlpha": 1, "kCGWindowLayer": 0, "kCGWindowBounds": {
+    Height = 30;
+    Width = 1680;
+    X = 1470;
+    Y = "-12";
+}, "kCGWindowMemoryUsage": 2368, "kCGWindowOwnerName": Sagasu]
+["kCGWindowLayer": 0, "kCGWindowOwnerName": Sagasu, "kCGWindowBounds": {
+    Height = 33;
+    Width = 1470;
+    X = 0;
+    Y = 0;
+}, "kCGWindowAlpha": 1, "kCGWindowOwnerPID": 43548, "kCGWindowNumber": 989, "kCGWindowMemoryUsage": 2368, "kCGWindowStoreType": 1, "kCGWindowSharingState": 0]
+["kCGWindowBounds": {
+    Height = 33;
+    Width = 1470;
+    X = 0;
+    Y = 0;
+}, "kCGWindowSharingState": 0, "kCGWindowLayer": 0, "kCGWindowOwnerName": Sagasu, "kCGWindowNumber": 987, "kCGWindowMemoryUsage": 2368, "kCGWindowStoreType": 1, "kCGWindowOwnerPID": 43548, "kCGWindowAlpha": 1]
+["kCGWindowMemoryUsage": 2368, "kCGWindowOwnerName": Sagasu, "kCGWindowNumber": 986, "kCGWindowOwnerPID": 43548, "kCGWindowSharingState": 0, "kCGWindowAlpha": 1, "kCGWindowLayer": 3, "kCGWindowStoreType": 1, "kCGWindowBounds": {
+    Height = 628;
+    Width = 816;
+    X = 345;
+    Y = 130;
+}]
+["kCGWindowBounds": {
+    Height = 500;
+    Width = 500;
+    X = 0;
+    Y = 456;
+}, "kCGWindowOwnerName": Sagasu, "kCGWindowOwnerPID": 43548, "kCGWindowSharingState": 0, "kCGWindowAlpha": 1, "kCGWindowStoreType": 1, "kCGWindowNumber": 995, "kCGWindowMemoryUsage": 2368, "kCGWindowLayer": 0]
+["kCGWindowOwnerPID": 43548, "kCGWindowStoreType": 1, "kCGWindowLayer": 0, "kCGWindowSharingState": 0, "kCGWindowNumber": 990, "kCGWindowAlpha": 1, "kCGWindowOwnerName": Sagasu, "kCGWindowBounds": {
+    Height = 33;
+    Width = 1470;
+    X = 0;
+    Y = 0;
+}, "kCGWindowMemoryUsage": 2368]
+["kCGWindowOwnerPID": 43548, "kCGWindowNumber": 988, "kCGWindowSharingState": 0, "kCGWindowLayer": 0, "kCGWindowStoreType": 1, "kCGWindowAlpha": 1, "kCGWindowOwnerName": Sagasu, "kCGWindowMemoryUsage": 2368, "kCGWindowBounds": {
+    Height = 33;
+    Width = 1470;
+    X = 0;
+    Y = 0;
+}]
+
+## stderr

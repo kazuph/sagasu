@@ -1,0 +1,15 @@
+$ swift test
+see verification-web-routes.log and latest test run
+
+$ ps -p 35832 -o pid=,command=
+35832 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch
+
+$ clipboard-history summary
+{"id": "086C16FC-C5CB-4413-9528-A8100261BB59", "capturedAt": 799138371.267246, "lastUsedAt": null, "pinnedAt": null, "content": {"image": {"_0": {"filename": "086C16FC-C5CB-4413-9528-A8100261BB59.png", "pixelWidth": 16, "pixelHeight": 12}}}}
+{"id": "AC064FDC-FC53-470C-8F59-7407708CFB99", "capturedAt": 799138370.420414, "lastUsedAt": null, "pinnedAt": null, "content": {"image": {"_0": {"filename": "AC064FDC-FC53-470C-8F59-7407708CFB99.png", "pixelWidth": 16, "pixelHeight": 12}}}}
+{"id": "CE473F89-9357-419B-AA36-8A6C8C07A204", "capturedAt": 799138367.968206, "lastUsedAt": null, "pinnedAt": null, "content": {"text": {"_0": "artifact text clip 1777445567"}}}
+
+$ clipboard-images files
+086C16FC-C5CB-4413-9528-A8100261BB59.png
+99F49D93-EF19-4A78-B1DB-418CB73040E5.png
+AC064FDC-FC53-470C-8F59-7407708CFB99.png

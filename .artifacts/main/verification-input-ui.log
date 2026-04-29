@@ -1,0 +1,8 @@
+# input and UI verification
+
+## window size after launch
+count=1
+{ Height = 520; Width = 708; X = 515; Y = 119; }
+
+## escape hide
+count=0

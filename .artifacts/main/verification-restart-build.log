@@ -1,0 +1,22 @@
+$ swift test
+Test Suite 'All tests' started at 2026-04-29 07:06:43.200.
+Test Suite 'All tests' passed at 2026-04-29 07:06:43.200.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1400
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test parsesFilePrefix() started.
+◇ Test parsesNotesPrefixCaseInsensitively() started.
+◇ Test defaultsToApplications() started.
+◇ Test parsesClipboardPrefix() started.
+✔ Test defaultsToApplications() passed after 0.001 seconds.
+✔ Test parsesNotesPrefixCaseInsensitively() passed after 0.001 seconds.
+✔ Test parsesFilePrefix() passed after 0.001 seconds.
+✔ Test parsesClipboardPrefix() passed after 0.001 seconds.
+✔ Test run with 4 tests in 0 suites passed after 0.001 seconds.
+
+$ ps -p 14721 -o pid=,command=
+14721 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch
+
+$ tail -n 20 /tmp/sagasu-launch.log
+2026-04-29 07:06:39.025 Sagasu[14721:46674767] error messaging the mach port for IMKCFRunLoopWakeUpReliable
