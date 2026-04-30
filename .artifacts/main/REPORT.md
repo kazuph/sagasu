@@ -32,6 +32,8 @@
 | 10 | 「ここに更にchromeでの検索導線を追加したいのですが、どうすればいい？」「ChatGPTに対しての導線も作成できる？」「未着は全部やって。」 | デフォルトの application モードで query を入力したとき、上位 3 件のアプリ結果の直後に `Search Google in Chrome` と `Ask ChatGPT in Chrome` の 2 アクションを差し込みました。Chrome が入っていれば Chrome を優先起動し、未導入なら既定ブラウザへフォールバックします。対応ファイルは `Sources/Sagasu/WebRouteSearchService.swift`、`SearchEngine.swift`、`AppCoordinator.swift`、`SearchViewModel.swift`、`SearchMode.swift` です。 | `swift test`、追加した `webRoutesAreEmptyForBlankQuery()` / `webRoutesIncludeGoogleAndChatGPT()`、`.artifacts/main/verification-web-routes.log`、再起動後の `ps -p 57235`。 |
 | 11 | 「クリップボードですが、デフォルト3ヶ月。一度でも再利用されたらそれだけ半年延長ルール。そして、選んだ状態で⌘Pが押されたらピン留め(無期限)昇格トグルになるようんして。画像もクリップボードに保持する、を追加して。」 | `ClipboardHistoryStore.swift` を刷新し、保持期限を「既定 3 か月 / 再利用で 6 か月延長 / pinned は無期限」に変更しました。`SearchResult` の clipboard action は entry ID ベースに変更し、`⌘P` で選択中 clipboard entry の pin toggle を走らせる配線を `LauncherPanelController.swift` / `SearchInputField.swift` / `SearchViewModel.swift` / `AppCoordinator.swift` に追加しました。さらに画像 clipboard を PNG として `~/Library/Application Support/Sagasu/clipboard-images/` に保存し、`v ` 検索でサムネイル表示・復元できるようにしました。 | `swift test`、追加した `ClipboardEntryTests.swift` の 3 テスト、`.artifacts/main/verification-clipboard-rules.log` の text/image 永続化ログ、再起動後の `ps -p 35832`。 |
 | 12 | 「画像ですが、今のサムネだと小さいので、画像の場合だけ右に拡大サムネ出して。 また、画像だけ検索したい場合があるので、viとしたらクリップボードかつ画像だけの検索にして」 | `ParsedSearchQuery` に clipboard image-only flag を追加し、`vi` / `vi <query>` を clipboard image-only search に割り当てました。検索 UI は選択中 result が画像のときだけ右側に拡大プレビュー pane を出すようにし、`v ` は text+image、`vi ` は image-only で使い分けられるようにしました。対応ファイルは `SearchMode.swift`、`SearchViewModel.swift`、`SearchEngine.swift`、`ClipboardHistoryStore.swift`、`SearchRootView.swift` です。 | `swift test`、追加した `parsesClipboardImagePrefix()`、`.artifacts/main/verification-clipboard-image-preview.log`、再起動後の `ps -p 73578`。 |
+| 13 | 「デグレかもしれませんが、Vスペースの場合はクリップボード出るんで-- ですが、VIスペースだと出なくなりました。また画像の表示ですが、画像もサムネイルが表示されなくなってます。両方とも確認してみてください。」 | 原因は、古い Sagasu プロセスが複数残っていたことと、`clipboard-history.json` に残っている画像エントリの一部が、実際には存在しない PNG ファイルを指していたことでした。起動時に同じ実行ファイルの他インスタンスを明示的に終了するようにし、保存済み画像ファイルが消えている image entry は自動で除去するよう修正しました。 | `swift test`、`.artifacts/main/verification-clipboard-regression-fix.log`、再起動後の単一プロセス `ps` と `active_image_entries=5 / existing_files=5 / missing_count=0`。 |
+| 14 | 「あとは、カーソルがあるモニターでwindowが起動するようにして。」 | ランチャー表示位置の screen 判定を `CGEvent` 依存から `NSEvent.mouseLocation` ベースへ切り替え、`frame` / `visibleFrame` のどちらかにカーソルが含まれるモニターを優先して使うようにしました。対応ファイルは `LauncherPanelController.swift` です。 | `swift test`、`.artifacts/main/verification-monitor-placement.log`、再起動後の `ps -p 57078`。 |
 
 ---
 
@@ -54,6 +56,8 @@
 | 「ここに更にchromeでの検索導線を追加したいのですが、どうすればいい？」「ChatGPTに対しての導線も作成できる？」「未着は全部やって。」 | ✅ 対処済み | デフォルト検索に Google / ChatGPT 導線を追加し、Chrome 優先起動 + 既定ブラウザフォールバックにしました。 |
 | 「クリップボードですが、デフォルト3ヶ月。一度でも再利用されたらそれだけ半年延長ルール。そして、選んだ状態で⌘Pが押されたらピン留め(無期限)昇格トグルになるようんして。画像もクリップボードに保持する、を追加して。」 | ✅ 対処済み | 3 か月/6 か月/pin ルール、⌘P pin toggle、画像 clipboard の保存・検索・復元を追加しました。 |
 | 「画像ですが、今のサムネだと小さいので、画像の場合だけ右に拡大サムネ出して。 また、画像だけ検索したい場合があるので、viとしたらクリップボードかつ画像だけの検索にして」 | ✅ 対処済み | 画像選択時の右側拡大プレビューと、`vi` の image-only clipboard 検索を追加しました。 |
+| 「デグレかもしれませんが、Vスペースの場合はクリップボード出るんで-- ですが、VIスペースだと出なくなりました。また画像の表示ですが、画像もサムネイルが表示されなくなってます。両方とも確認してみてください。」 | ✅ 対処済み | 多重起動を抑止し、壊れた画像エントリを自動で掃除するようにしました。 |
+| 「あとは、カーソルがあるモニターでwindowが起動するようにして。」 | ✅ 対処済み | カーソル座標をもとに表示先モニターを選ぶようにしました。 |
 
 </details>
 
@@ -87,6 +91,8 @@
 | [verification-web-routes.log](./verification-web-routes.log) | Google / ChatGPT 導線追加後の `swift test` 成功ログと、再起動した Sagasu プロセス PID `57235` の記録。 |
 | [verification-clipboard-rules.log](./verification-clipboard-rules.log) | clipboard retention / image persistence 対応後の runtime ログ。保存済み text entry と image entry の JSON 要約、`clipboard-images/` の PNG 実ファイル、再起動した Sagasu プロセス PID `35832` を記録。 |
 | [verification-clipboard-image-preview.log](./verification-clipboard-image-preview.log) | `vi` パーサと image preview UI 対応後の `swift test` 成功ログと、再起動した Sagasu プロセス PID `73578` の記録。 |
+| [verification-clipboard-regression-fix.log](./verification-clipboard-regression-fix.log) | clipboard image regression 修正後の runtime 状態。単一 Sagasu プロセスと、`clipboard-history.json` / `clipboard-images/` の image entry 整合性 `missing_count=0` を記録。 |
+| [verification-monitor-placement.log](./verification-monitor-placement.log) | モニター選択ロジック修正後の `swift test` 成功ログと、`LauncherPanelController.swift` の screen 判定差分を記録。 |
 
 ### テスト結果
 ```bash

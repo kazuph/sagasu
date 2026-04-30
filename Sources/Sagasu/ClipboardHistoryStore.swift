@@ -389,6 +389,7 @@ final class ClipboardHistoryStore: ObservableObject {
 
     private func persistState() throws {
         pruneExpiredEntries(referenceDate: Date())
+        pruneEntriesWithMissingImages()
         trimUnpinnedEntriesIfNeeded()
 
         let data = try JSONEncoder().encode(entries)
@@ -415,6 +416,14 @@ final class ClipboardHistoryStore: ObservableObject {
         let remainingCapacity = maxEntries - retainedEntries.count
         retainedEntries.append(contentsOf: unpinnedEntries.prefix(remainingCapacity))
         entries = retainedEntries.sorted(by: sortEntries)
+    }
+
+    private func pruneEntriesWithMissingImages() {
+        entries.removeAll { entry in
+            guard case .image(let payload) = entry.content else { return false }
+            let fileURL = imageDirectoryURL.appending(path: payload.filename)
+            return fileManager.fileExists(atPath: fileURL.path) == false
+        }
     }
 
     private func reconcileImageFiles() throws {

@@ -1,0 +1,6 @@
+--- processes ---
+90552       00:17 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch
+--- image state ---
+active_image_entries= 5
+existing_files= 5
+missing_count= 0

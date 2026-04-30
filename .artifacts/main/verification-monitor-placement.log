@@ -1,0 +1,49 @@
+$ swift test
+Test Suite 'All tests' started at 2026-04-30 10:05:53.226.
+Test Suite 'All tests' passed at 2026-04-30 10:05:53.227.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1400
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test defaultsToApplications() started.
+◇ Test pinnedClipboardEntryDoesNotExpire() started.
+◇ Test webRoutesAreEmptyForBlankQuery() started.
+◇ Test parsesNotesPrefixCaseInsensitively() started.
+◇ Test clipboardEntryExtendsSixMonthsAfterReuse() started.
+◇ Test shellCommandRunnerHandlesLargeOutput() started.
+◇ Test parsesClipboardPrefix() started.
+◇ Test clipboardEntryExpiresAfterThreeMonthsByDefault() started.
+◇ Test parsesClipboardImagePrefix() started.
+◇ Test webRoutesIncludeGoogleAndChatGPT() started.
+◇ Test parsesFilePrefix() started.
+✔ Test webRoutesAreEmptyForBlankQuery() passed after 0.001 seconds.
+✔ Test parsesNotesPrefixCaseInsensitively() passed after 0.001 seconds.
+✔ Test defaultsToApplications() passed after 0.001 seconds.
+✔ Test parsesClipboardPrefix() passed after 0.001 seconds.
+✔ Test parsesClipboardImagePrefix() passed after 0.001 seconds.
+✔ Test parsesFilePrefix() passed after 0.001 seconds.
+✔ Test webRoutesIncludeGoogleAndChatGPT() passed after 0.001 seconds.
+✔ Test clipboardEntryExtendsSixMonthsAfterReuse() passed after 0.001 seconds.
+✔ Test clipboardEntryExpiresAfterThreeMonthsByDefault() passed after 0.001 seconds.
+✔ Test pinnedClipboardEntryDoesNotExpire() passed after 0.001 seconds.
+✔ Test shellCommandRunnerHandlesLargeOutput() passed after 0.011 seconds.
+✔ Test run with 11 tests in 0 suites passed after 0.011 seconds.
+
+$ git --no-pager diff -- Sources/Sagasu/LauncherPanelController.swift
+diff --git a/Sources/Sagasu/LauncherPanelController.swift b/Sources/Sagasu/LauncherPanelController.swift
+index f4480ea..ac453e0 100644
+--- a/Sources/Sagasu/LauncherPanelController.swift
++++ b/Sources/Sagasu/LauncherPanelController.swift
+@@ -209,8 +209,10 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
+     }
+ 
+     private func activeScreen() -> NSScreen? {
+-        let mouseLocation = CGEvent(source: nil)?.location ?? NSEvent.mouseLocation
+-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) {
++        let mouseLocation = NSEvent.mouseLocation
++        if let screen = NSScreen.screens.first(where: {
++            $0.frame.contains(mouseLocation) || $0.visibleFrame.contains(mouseLocation)
++        }) {
+             return screen
+         }
+ 
