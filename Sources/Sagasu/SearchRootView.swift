@@ -23,6 +23,9 @@ struct SearchRootView: View {
                     onTogglePin: {
                         viewModel.togglePinForSelectedClipboardEntry()
                     },
+                    onDeleteClipboardEntry: {
+                        viewModel.deleteSelectedClipboardEntry()
+                    },
                     onEscape: onCancel
                 )
                 .frame(height: 26)

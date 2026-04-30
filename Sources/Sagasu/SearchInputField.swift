@@ -8,6 +8,7 @@ struct SearchInputField: NSViewRepresentable {
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
     let onTogglePin: () -> Void
+    let onDeleteClipboardEntry: () -> Void
     let onEscape: () -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -29,6 +30,7 @@ struct SearchInputField: NSViewRepresentable {
         textField.onMoveUp = onMoveUp
         textField.onMoveDown = onMoveDown
         textField.onTogglePin = onTogglePin
+        textField.onDeleteClipboardEntry = onDeleteClipboardEntry
         textField.onEscape = onEscape
         return textField
     }
@@ -42,6 +44,7 @@ struct SearchInputField: NSViewRepresentable {
         nsView.onMoveUp = onMoveUp
         nsView.onMoveDown = onMoveDown
         nsView.onTogglePin = onTogglePin
+        nsView.onDeleteClipboardEntry = onDeleteClipboardEntry
         nsView.onEscape = onEscape
 
         DispatchQueue.main.async {
@@ -51,6 +54,7 @@ struct SearchInputField: NSViewRepresentable {
                 launcherWindow.onMoveUp = onMoveUp
                 launcherWindow.onMoveDown = onMoveDown
                 launcherWindow.onTogglePin = onTogglePin
+                launcherWindow.onDeleteClipboardEntry = onDeleteClipboardEntry
                 if window.isKeyWindow {
                     launcherWindow.focusSearchField()
                     return
@@ -101,6 +105,7 @@ final class LauncherSearchField: NSTextField {
     var onMoveUp: (() -> Void)?
     var onMoveDown: (() -> Void)?
     var onTogglePin: (() -> Void)?
+    var onDeleteClipboardEntry: (() -> Void)?
     var onEscape: (() -> Void)?
 
     override var acceptsFirstResponder: Bool { true }

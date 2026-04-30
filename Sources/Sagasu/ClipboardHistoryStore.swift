@@ -72,15 +72,26 @@ final class ClipboardHistoryStore: ObservableObject {
     private var monitorTask: Task<Void, Never>?
     private var lastObservedChangeCount: Int
 
-    init(fileManager: FileManager = .default, pasteboard: NSPasteboard = .general) {
+    init(
+        fileManager: FileManager = .default,
+        pasteboard: NSPasteboard = .general,
+        baseDirectoryURL: URL? = nil
+    ) {
         self.fileManager = fileManager
         self.pasteboard = pasteboard
 
-        let appSupportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        baseDirectoryURL = appSupportDirectory
-            .appending(path: "Sagasu", directoryHint: .isDirectory)
-        storageURL = baseDirectoryURL.appending(path: "clipboard-history.json")
-        imageDirectoryURL = baseDirectoryURL.appending(path: "clipboard-images", directoryHint: .isDirectory)
+        let resolvedBaseDirectoryURL: URL
+        if let baseDirectoryURL {
+            resolvedBaseDirectoryURL = baseDirectoryURL
+        } else {
+            let appSupportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            resolvedBaseDirectoryURL = appSupportDirectory
+                .appending(path: "Sagasu", directoryHint: .isDirectory)
+        }
+
+        self.baseDirectoryURL = resolvedBaseDirectoryURL
+        storageURL = resolvedBaseDirectoryURL.appending(path: "clipboard-history.json")
+        imageDirectoryURL = resolvedBaseDirectoryURL.appending(path: "clipboard-images", directoryHint: .isDirectory)
         lastObservedChangeCount = pasteboard.changeCount
 
         do {
@@ -168,6 +179,15 @@ final class ClipboardHistoryStore: ObservableObject {
         }
 
         entries[index].pinnedAt = entries[index].isPinned ? nil : Date()
+        try persistState()
+    }
+
+    func delete(entryID: UUID) throws {
+        guard let index = entries.firstIndex(where: { $0.id == entryID }) else {
+            throw LauncherError.clipboardEntryUnavailable
+        }
+
+        entries.remove(at: index)
         try persistState()
     }
 

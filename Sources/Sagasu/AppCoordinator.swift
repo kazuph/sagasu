@@ -24,6 +24,9 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.searchViewModel.clipboardPinToggleHandler = { [weak self] entryID in
             try self?.clipboardStore.togglePin(entryID: entryID)
         }
+        self.searchViewModel.clipboardDeleteHandler = { [weak self] entryID in
+            try self?.clipboardStore.delete(entryID: entryID)
+        }
     }
 
     func start(configuration: LaunchConfiguration = .current) {

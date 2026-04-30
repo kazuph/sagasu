@@ -7,6 +7,7 @@ final class LauncherWindow: NSWindow {
     var onMoveUp: (() -> Void)?
     var onMoveDown: (() -> Void)?
     var onTogglePin: (() -> Void)?
+    var onDeleteClipboardEntry: (() -> Void)?
     weak var searchField: NSView?
 
     override var canBecomeKey: Bool { true }
@@ -54,9 +55,17 @@ final class LauncherWindow: NSWindow {
                 }
 
                 if relevantModifiers == [.command],
-                   event.charactersIgnoringModifiers?.lowercased() == "p" {
-                    onTogglePin?()
-                    return
+                   let characters = event.charactersIgnoringModifiers?.lowercased() {
+                    switch characters {
+                    case "p":
+                        onTogglePin?()
+                        return
+                    case "d":
+                        onDeleteClipboardEntry?()
+                        return
+                    default:
+                        break
+                    }
                 }
             }
         }

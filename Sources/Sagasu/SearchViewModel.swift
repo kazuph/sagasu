@@ -49,14 +49,15 @@ final class SearchViewModel: ObservableObject {
             return "Searches Notes titles and bodies."
         case .clipboard:
             if parsedQuery.clipboardImageOnly {
-                return "Search saved clipboard images only. Type `v ` for text + image history. Default retention is 3 months, reuse extends 6 months, and ⌘P toggles pin."
+                return "Search saved clipboard images only. Type `v ` for text + image history. Default retention is 3 months, reuse extends 6 months, ⌘P toggles pin, and ⌘D deletes."
             }
-            return "Search saved clipboard text and images. Default retention is 3 months, reuse extends 6 months, and ⌘P toggles pin."
+            return "Search saved clipboard text and images. Default retention is 3 months, reuse extends 6 months, ⌘P toggles pin, and ⌘D deletes."
         }
     }
 
     var actionHandler: ((SearchAction) -> Void)?
     var clipboardPinToggleHandler: ((UUID) throws -> Void)?
+    var clipboardDeleteHandler: ((UUID) throws -> Void)?
 
     private let searchEngine: SearchEngine
     private var searchTask: Task<Void, Never>?
@@ -98,11 +99,23 @@ final class SearchViewModel: ObservableObject {
 
     func togglePinForSelectedClipboardEntry() {
         guard parsedQuery.mode == .clipboard else { return }
-        guard let action = results[safe: selectedIndex]?.action else { return }
-        guard case .restoreClipboard(let entryID) = action else { return }
+        guard let entryID = selectedClipboardEntryID else { return }
 
         do {
             try clipboardPinToggleHandler?(entryID)
+            errorMessage = nil
+            refreshSearch()
+        } catch {
+            present(error: error)
+        }
+    }
+
+    func deleteSelectedClipboardEntry() {
+        guard parsedQuery.mode == .clipboard else { return }
+        guard let entryID = selectedClipboardEntryID else { return }
+
+        do {
+            try clipboardDeleteHandler?(entryID)
             errorMessage = nil
             refreshSearch()
         } catch {
@@ -161,5 +174,11 @@ final class SearchViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    private var selectedClipboardEntryID: UUID? {
+        guard let action = results[safe: selectedIndex]?.action else { return nil }
+        guard case .restoreClipboard(let entryID) = action else { return nil }
+        return entryID
     }
 }

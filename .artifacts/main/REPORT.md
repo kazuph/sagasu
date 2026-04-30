@@ -34,6 +34,7 @@
 | 12 | 「画像ですが、今のサムネだと小さいので、画像の場合だけ右に拡大サムネ出して。 また、画像だけ検索したい場合があるので、viとしたらクリップボードかつ画像だけの検索にして」 | `ParsedSearchQuery` に clipboard image-only flag を追加し、`vi` / `vi <query>` を clipboard image-only search に割り当てました。検索 UI は選択中 result が画像のときだけ右側に拡大プレビュー pane を出すようにし、`v ` は text+image、`vi ` は image-only で使い分けられるようにしました。対応ファイルは `SearchMode.swift`、`SearchViewModel.swift`、`SearchEngine.swift`、`ClipboardHistoryStore.swift`、`SearchRootView.swift` です。 | `swift test`、追加した `parsesClipboardImagePrefix()`、`.artifacts/main/verification-clipboard-image-preview.log`、再起動後の `ps -p 73578`。 |
 | 13 | 「デグレかもしれませんが、Vスペースの場合はクリップボード出るんで-- ですが、VIスペースだと出なくなりました。また画像の表示ですが、画像もサムネイルが表示されなくなってます。両方とも確認してみてください。」 | 原因は、古い Sagasu プロセスが複数残っていたことと、`clipboard-history.json` に残っている画像エントリの一部が、実際には存在しない PNG ファイルを指していたことでした。起動時に同じ実行ファイルの他インスタンスを明示的に終了するようにし、保存済み画像ファイルが消えている image entry は自動で除去するよう修正しました。 | `swift test`、`.artifacts/main/verification-clipboard-regression-fix.log`、再起動後の単一プロセス `ps` と `active_image_entries=5 / existing_files=5 / missing_count=0`。 |
 | 14 | 「あとは、カーソルがあるモニターでwindowが起動するようにして。」 | ランチャー表示位置の screen 判定を `CGEvent` 依存から `NSEvent.mouseLocation` ベースへ切り替え、`frame` / `visibleFrame` のどちらかにカーソルが含まれるモニターを優先して使うようにしました。対応ファイルは `LauncherPanelController.swift` です。 | `swift test`、`.artifacts/main/verification-monitor-placement.log`、再起動後の `ps -p 57078`。 |
+| 15 | 「次は、vとvi検索なんだけど、pinのように⌘Dの場合は履歴から削除できるようにして」 | clipboard 検索モード (`v ` / `vi `) で選択中の履歴を `⌘D` で削除できるようにしました。`LauncherPanelController.swift` / `SearchInputField.swift` / `SearchRootView.swift` / `SearchViewModel.swift` / `AppCoordinator.swift` に削除ショートカットの配線を追加し、`ClipboardHistoryStore.swift` に entry 削除 API を追加しました。画像 entry を削除した場合は、対応する PNG 実ファイルも履歴更新にあわせて掃除されます。 | `swift test`、追加した `ClipboardHistoryStoreTests.swift` の text/image 削除テスト、`.artifacts/main/verification-clipboard-delete.log`、再起動後の `ps -p 3407`。 |
 
 ---
 
@@ -58,6 +59,7 @@
 | 「画像ですが、今のサムネだと小さいので、画像の場合だけ右に拡大サムネ出して。 また、画像だけ検索したい場合があるので、viとしたらクリップボードかつ画像だけの検索にして」 | ✅ 対処済み | 画像選択時の右側拡大プレビューと、`vi` の image-only clipboard 検索を追加しました。 |
 | 「デグレかもしれませんが、Vスペースの場合はクリップボード出るんで-- ですが、VIスペースだと出なくなりました。また画像の表示ですが、画像もサムネイルが表示されなくなってます。両方とも確認してみてください。」 | ✅ 対処済み | 多重起動を抑止し、壊れた画像エントリを自動で掃除するようにしました。 |
 | 「あとは、カーソルがあるモニターでwindowが起動するようにして。」 | ✅ 対処済み | カーソル座標をもとに表示先モニターを選ぶようにしました。 |
+| 「次は、vとvi検索なんだけど、pinのように⌘Dの場合は履歴から削除できるようにして」 | ✅ 対処済み | `v ` / `vi ` で選択中の clipboard 履歴を `⌘D` で削除できるようにしました。 |
 
 </details>
 
@@ -93,6 +95,7 @@
 | [verification-clipboard-image-preview.log](./verification-clipboard-image-preview.log) | `vi` パーサと image preview UI 対応後の `swift test` 成功ログと、再起動した Sagasu プロセス PID `73578` の記録。 |
 | [verification-clipboard-regression-fix.log](./verification-clipboard-regression-fix.log) | clipboard image regression 修正後の runtime 状態。単一 Sagasu プロセスと、`clipboard-history.json` / `clipboard-images/` の image entry 整合性 `missing_count=0` を記録。 |
 | [verification-monitor-placement.log](./verification-monitor-placement.log) | モニター選択ロジック修正後の `swift test` 成功ログと、`LauncherPanelController.swift` の screen 判定差分を記録。 |
+| [verification-clipboard-delete.log](./verification-clipboard-delete.log) | `⌘D` clipboard 履歴削除対応後の `swift test` 成功ログ、追加した text/image 削除テスト、再起動した Sagasu プロセス PID `3407` の記録。 |
 
 ### テスト結果
 ```bash

@@ -1,0 +1,37 @@
+$ swift test
+Test Suite 'All tests' started at 2026-04-30 10:09:44.749.
+Test Suite 'All tests' passed at 2026-04-30 10:09:44.750.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1400
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test webRoutesAreEmptyForBlankQuery() started.
+◇ Test parsesFilePrefix() started.
+◇ Test defaultsToApplications() started.
+◇ Test deleteClipboardEntryRemovesStoredTextEntry() started.
+◇ Test pinnedClipboardEntryDoesNotExpire() started.
+◇ Test parsesNotesPrefixCaseInsensitively() started.
+◇ Test parsesClipboardPrefix() started.
+◇ Test shellCommandRunnerHandlesLargeOutput() started.
+◇ Test deleteClipboardEntryRemovesStoredImageFile() started.
+◇ Test webRoutesIncludeGoogleAndChatGPT() started.
+◇ Test clipboardEntryExtendsSixMonthsAfterReuse() started.
+✔ Test parsesFilePrefix() passed after 0.001 seconds.
+◇ Test clipboardEntryExpiresAfterThreeMonthsByDefault() started.
+◇ Test parsesClipboardImagePrefix() started.
+✔ Test webRoutesAreEmptyForBlankQuery() passed after 0.001 seconds.
+✔ Test parsesClipboardPrefix() passed after 0.001 seconds.
+✔ Test parsesNotesPrefixCaseInsensitively() passed after 0.001 seconds.
+✔ Test defaultsToApplications() passed after 0.001 seconds.
+✔ Test parsesClipboardImagePrefix() passed after 0.001 seconds.
+✔ Test webRoutesIncludeGoogleAndChatGPT() passed after 0.001 seconds.
+✔ Test clipboardEntryExtendsSixMonthsAfterReuse() passed after 0.001 seconds.
+✔ Test clipboardEntryExpiresAfterThreeMonthsByDefault() passed after 0.001 seconds.
+✔ Test pinnedClipboardEntryDoesNotExpire() passed after 0.003 seconds.
+✔ Test deleteClipboardEntryRemovesStoredTextEntry() passed after 0.004 seconds.
+✔ Test deleteClipboardEntryRemovesStoredImageFile() passed after 0.004 seconds.
+✔ Test shellCommandRunnerHandlesLargeOutput() passed after 0.011 seconds.
+✔ Test run with 13 tests in 0 suites passed after 0.012 seconds.
+
+$ nohup .build/arm64-apple-macosx/debug/Sagasu --show-on-launch
+ 3407 /Users/kazuph/src/github.com/kazuph/sagasu/.build/arm64-apple-macosx/debug/Sagasu --show-on-launch
