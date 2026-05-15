@@ -69,6 +69,7 @@ final class SearchViewModel: ObservableObject {
 
     func prepareForPresentation() {
         rawQuery = ""
+        selectedIndex = 0
         errorMessage = nil
         presentationID = UUID()
     }
@@ -131,6 +132,7 @@ final class SearchViewModel: ObservableObject {
         searchTask?.cancel()
         let parsedQuery = SearchModeParser.parse(rawQuery)
         self.parsedQuery = parsedQuery
+        selectedIndex = 0
         isSearching = false
         let searchEngine = self.searchEngine
 
@@ -156,7 +158,7 @@ final class SearchViewModel: ObservableObject {
 
                 await MainActor.run {
                         self?.results = results
-                        self?.selectedIndex = results.isEmpty ? 0 : min(self?.selectedIndex ?? 0, results.count - 1)
+                        self?.selectedIndex = 0
                         self?.errorMessage = nil
                         self?.isSearching = false
                     }
