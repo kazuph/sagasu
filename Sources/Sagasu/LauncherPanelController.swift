@@ -102,7 +102,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
         panel.animationBehavior = .none
-        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.closeButton)?.isHidden = false
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.backgroundColor = .clear
@@ -189,6 +189,11 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         isBecomeKeyPending = false
         (window as? LauncherWindow)?.focusSearchField()
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        hide()
+        return false
     }
 
     func windowDidResignKey(_ notification: Notification) {

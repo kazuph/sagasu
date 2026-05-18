@@ -10,6 +10,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.start(configuration: .current)
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard coordinator.isQuitRequested else {
+            coordinator.hideLauncher()
+            return .terminateCancel
+        }
+
+        return .terminateNow
+    }
+
     func applicationDidResignActive(_ notification: Notification) {
         coordinator.hideLauncher()
     }
@@ -40,7 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             let command = String(components[1])
-            guard command.hasPrefix(executablePath) else { continue }
+            let commandExecutablePath = command.split(maxSplits: 1, whereSeparator: \.isWhitespace).first.map(String.init) ?? command
+            guard commandExecutablePath.hasSuffix("/Sagasu.app/Contents/MacOS/Sagasu"),
+                  commandExecutablePath != executablePath else {
+                continue
+            }
             kill(pid, SIGTERM)
         }
     }

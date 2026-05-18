@@ -13,6 +13,7 @@ cd "$ROOT_DIR"
 /bin/mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 /bin/cp "$ROOT_DIR/App/Info.plist" "$APP_DIR/Contents/Info.plist"
 /bin/cp "$EXECUTABLE_PATH" "$BUNDLED_EXECUTABLE_PATH"
+/usr/bin/ditto "$ROOT_DIR/App/Resources" "$APP_DIR/Contents/Resources"
 /bin/chmod +x "$BUNDLED_EXECUTABLE_PATH"
 
 /usr/bin/codesign --force --deep --sign - "$APP_DIR" >/dev/null 2>&1 || true

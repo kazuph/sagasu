@@ -10,6 +10,8 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     private var hotKeyMonitor: HotKeyMonitor?
     private var launcherPanelController: LauncherPanelController?
+    private var statusItem: NSStatusItem?
+    private(set) var isQuitRequested = false
 
     override init() {
         let clipboardStore = ClipboardHistoryStore()
@@ -30,6 +32,9 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func start(configuration: LaunchConfiguration = .current) {
+        NSApp.applicationIconImage = SagasuIcon.appIcon()
+        configureStatusItem()
+
         do {
             hotKeyMonitor = try HotKeyMonitor(keyCode: UInt32(kVK_Space), modifiers: UInt32(optionKey)) { [weak self] in
                 Task { @MainActor in
@@ -81,6 +86,37 @@ final class AppCoordinator: NSObject, ObservableObject {
         launcherPanelController?.hide()
     }
 
+    @objc private func showLauncherFromStatusItem(_ sender: Any?) {
+        searchViewModel.prepareForPresentation()
+        launcherPanelController?.show()
+    }
+
+    @objc private func quitFromStatusItem(_ sender: Any?) {
+        isQuitRequested = true
+        NSApp.terminate(sender)
+    }
+
+    private func configureStatusItem() {
+        let statusItem = NSStatusBar.system.statusItem(withLength: 24)
+        statusItem.button?.title = "🔭"
+        statusItem.button?.font = .systemFont(ofSize: 16)
+        statusItem.button?.toolTip = "Sagasu"
+
+        let menu = NSMenu()
+        let titleItem = NSMenuItem(title: "🔭 Sagasu", action: nil, keyEquivalent: "")
+        titleItem.isEnabled = false
+        menu.addItem(titleItem)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Open Sagasu", action: #selector(showLauncherFromStatusItem(_:)), keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit Sagasu", action: #selector(quitFromStatusItem(_:)), keyEquivalent: "q"))
+        for item in menu.items {
+            item.target = self
+        }
+        statusItem.menu = menu
+        self.statusItem = statusItem
+    }
+
     private func perform(action: SearchAction) {
         do {
             switch action {
@@ -123,6 +159,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         } catch {
             searchViewModel.present(error: error)
         }
+        isQuitRequested = true
         NSApp.terminate(nil)
     }
 }
