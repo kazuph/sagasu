@@ -98,6 +98,17 @@ struct WindowManager {
         return AXIsProcessTrustedWithOptions(options)
     }
 
+    static var isAccessibilityTrusted: Bool {
+        AXIsProcessTrusted()
+    }
+
+    static func openAccessibilitySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
     private func focusedWindow() -> AXUIElement? {
         guard let application = NSWorkspace.shared.frontmostApplication else { return nil }
         let appElement = AXUIElementCreateApplication(application.processIdentifier)

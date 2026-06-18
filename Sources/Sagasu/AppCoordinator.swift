@@ -13,6 +13,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
     private var statusItem: NSStatusItem?
+    private var didPresentAccessibilityPermissionError = false
     private(set) var isQuitRequested = false
 
     override init() {
@@ -141,7 +142,7 @@ final class AppCoordinator: NSObject, ObservableObject {
                         do {
                             try self?.windowManager.perform(command)
                         } catch {
-                            NSApp.presentError(error)
+                            self?.presentWindowManagement(error: error)
                         }
                     }
                 }
@@ -150,6 +151,18 @@ final class AppCoordinator: NSObject, ObservableObject {
                 return nil
             }
         }
+    }
+
+    private func presentWindowManagement(error: Error) {
+        if case LauncherError.accessibilityPermissionRequired = error {
+            guard didPresentAccessibilityPermissionError == false else { return }
+            didPresentAccessibilityPermissionError = true
+            WindowManager.openAccessibilitySettings()
+            NSApp.presentError(error)
+            return
+        }
+
+        NSApp.presentError(error)
     }
 
     private func perform(action: SearchAction) {
