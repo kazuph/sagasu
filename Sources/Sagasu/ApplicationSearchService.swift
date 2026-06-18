@@ -15,11 +15,12 @@ struct ApplicationSearchService: Sendable {
         applications = Self.loadApplications(fileManager: fileManager)
     }
 
-    func search(query: String, limit: Int = 40) -> [SearchResult] {
+    func search(query: String, limit: Int = 40, usageHistoryStore: UsageHistoryStore? = nil) -> [SearchResult] {
         let normalizedQuery = SearchMatcher.normalize(query)
         let runningBundleIdentifiers = Set(
             NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
         )
+        let now = Date()
 
         let ranked: [(SearchResult, Int)] = applications.compactMap { application in
             let score: Int
@@ -35,6 +36,12 @@ struct ApplicationSearchService: Sendable {
                 return nil
             }
 
+            let usageBoost = usageHistoryStore
+                .flatMap { $0.lastUsedAt(for: UsageHistoryKey.application(application.url)) }
+                .map { lastUsedAt in
+                    max(0, 240 - Int(now.timeIntervalSince(lastUsedAt) / 86_400))
+                } ?? 0
+
             let result = SearchResult(
                 title: application.name,
                 subtitle: application.bundleIdentifier,
@@ -42,7 +49,7 @@ struct ApplicationSearchService: Sendable {
                 visual: .fileIcon(application.url),
                 action: .launchApplication(application.url)
             )
-            return (result, score)
+            return (result, score + usageBoost)
         }
 
         return ranked

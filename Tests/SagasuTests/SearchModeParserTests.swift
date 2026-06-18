@@ -21,6 +21,15 @@ func parsesFilePrefix() {
 }
 
 @Test
+func parsesUppercaseFilePrefixWithEmptyQuery() {
+    let parsed = SearchModeParser.parse("F ")
+
+    #expect(parsed.mode == .files)
+    #expect(parsed.query == "")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
 func parsesNotesPrefixCaseInsensitively() {
     let parsed = SearchModeParser.parse("N meeting")
 

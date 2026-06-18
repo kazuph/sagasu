@@ -4,13 +4,15 @@ import UniformTypeIdentifiers
 struct FileSearchService: Sendable {
     private let scopes: [URL]
 
-    init(fileManager: FileManager = .default) {
-        scopes = Self.resolveScopes(fileManager: fileManager)
+    init(fileManager: FileManager = .default, scopes: [URL]? = nil) {
+        self.scopes = scopes ?? Self.resolveScopes(fileManager: fileManager)
     }
 
     func search(query: String, limit: Int = 40) throws -> [SearchResult] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedQuery.isEmpty == false else { return [] }
+        guard trimmedQuery.isEmpty == false else {
+            return recentFolders(limit: min(limit, 40))
+        }
 
         let commandRunner = ShellCommandRunner()
         let output = try commandRunner.run(
@@ -35,6 +37,49 @@ struct FileSearchService: Sendable {
         }
 
         return Array(results.prefix(limit))
+    }
+
+    func recentFolders(limit: Int = 12) -> [SearchResult] {
+        let fileManager = FileManager.default
+        let resourceKeys: Set<URLResourceKey> = [
+            .isDirectoryKey,
+            .contentModificationDateKey,
+            .isPackageKey
+        ]
+        var seenPaths = Set<String>()
+        var folders: [(URL, Date)] = []
+
+        for scope in scopes {
+            guard let enumerator = fileManager.enumerator(
+                at: scope,
+                includingPropertiesForKeys: Array(resourceKeys),
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else {
+                continue
+            }
+
+            while let url = enumerator.nextObject() as? URL {
+                guard seenPaths.insert(url.path).inserted else { continue }
+                guard let values = try? url.resourceValues(forKeys: resourceKeys),
+                      values.isDirectory == true,
+                      values.isPackage != true else {
+                    continue
+                }
+
+                folders.append((url, values.contentModificationDate ?? .distantPast))
+                if folders.count >= max(limit * 12, 80) {
+                    break
+                }
+            }
+        }
+
+        return folders
+            .sorted { lhs, rhs in
+                if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
+                return lhs.0.lastPathComponent.localizedCaseInsensitiveCompare(rhs.0.lastPathComponent) == .orderedAscending
+            }
+            .prefix(limit)
+            .map { makeResult(for: $0.0) }
     }
 
     private func buildArguments(for query: String) -> [String] {

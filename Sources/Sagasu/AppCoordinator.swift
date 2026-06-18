@@ -9,6 +9,8 @@ final class AppCoordinator: NSObject, ObservableObject {
     let searchViewModel: SearchViewModel
 
     private var hotKeyMonitor: HotKeyMonitor?
+    private var windowHotKeyMonitors: [HotKeyMonitor] = []
+    private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
     private var statusItem: NSStatusItem?
     private(set) var isQuitRequested = false
@@ -41,6 +43,7 @@ final class AppCoordinator: NSObject, ObservableObject {
                     self?.toggleLauncher()
                 }
             }
+            try configureWindowManagementHotKeys()
         } catch {
             NSApp.presentError(error)
         }
@@ -117,6 +120,28 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.statusItem = statusItem
     }
 
+    private func configureWindowManagementHotKeys() throws {
+        let modifiers = UInt32(controlKey | shiftKey | cmdKey)
+        let bindings: [(UInt32, WindowManager.Command)] = [
+            (UInt32(kVK_ANSI_J), .bottomHalf),
+            (UInt32(kVK_ANSI_I), .centerThird),
+            (UInt32(kVK_ANSI_H), .leftHalf),
+            (UInt32(kVK_Return), .maximize),
+            (UInt32(kVK_ANSI_Y), .nextDisplay),
+            (UInt32(kVK_ANSI_P), .previousDisplay),
+            (UInt32(kVK_ANSI_L), .rightHalf),
+            (UInt32(kVK_ANSI_K), .topHalf)
+        ]
+
+        windowHotKeyMonitors = try bindings.map { keyCode, command in
+            try HotKeyMonitor(keyCode: keyCode, modifiers: modifiers) { [weak self] in
+                Task { @MainActor in
+                    self?.windowManager.perform(command)
+                }
+            }
+        }
+    }
+
     private func perform(action: SearchAction) {
         do {
             switch action {
@@ -132,6 +157,7 @@ final class AppCoordinator: NSObject, ObservableObject {
             case .restoreClipboard(let entryID):
                 try clipboardStore.restore(entryID: entryID)
             }
+            try? searchEngine.markUsed(action: action)
             hideLauncher()
         } catch {
             searchViewModel.present(error: error)

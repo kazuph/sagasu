@@ -6,25 +6,38 @@ struct SearchEngine {
     private let notesSearchService: NotesSearchService
     private let clipboardStore: ClipboardHistoryStore
     private let webRouteSearchService: WebRouteSearchService
+    private let usageHistoryStore: UsageHistoryStore
 
     init(
         applicationSearchService: ApplicationSearchService = ApplicationSearchService(),
         fileSearchService: FileSearchService = FileSearchService(),
         notesSearchService: NotesSearchService = NotesSearchService(),
         webRouteSearchService: WebRouteSearchService = WebRouteSearchService(),
-        clipboardStore: ClipboardHistoryStore
+        clipboardStore: ClipboardHistoryStore,
+        usageHistoryStore: UsageHistoryStore = UsageHistoryStore()
     ) {
         self.applicationSearchService = applicationSearchService
         self.fileSearchService = fileSearchService
         self.notesSearchService = notesSearchService
         self.clipboardStore = clipboardStore
         self.webRouteSearchService = webRouteSearchService
+        self.usageHistoryStore = usageHistoryStore
     }
 
     func search(for parsedQuery: ParsedSearchQuery) async throws -> [SearchResult] {
         switch parsedQuery.mode {
         case .applications:
-            let appResults = applicationSearchService.search(query: parsedQuery.query)
+            let appResults = applicationSearchService.search(
+                query: parsedQuery.query,
+                usageHistoryStore: usageHistoryStore
+            )
+            if parsedQuery.query.isEmpty {
+                let recentFolders = await Task.detached(priority: .userInitiated) {
+                    fileSearchService.recentFolders(limit: 10)
+                }.value
+                return Array(appResults.prefix(3)) + recentFolders + Array(appResults.dropFirst(3))
+            }
+
             let webResults = webRouteSearchService.search(query: parsedQuery.query)
             guard webResults.isEmpty == false else { return appResults }
 
@@ -51,6 +64,17 @@ struct SearchEngine {
             return await MainActor.run {
                 clipboardStore.search(query: query, imageOnly: parsedQuery.clipboardImageOnly)
             }
+        }
+    }
+
+    func markUsed(action: SearchAction) throws {
+        switch action {
+        case .launchApplication(let url):
+            try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
+        case .openURL(let url):
+            try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
+        case .openURLInPreferredBrowser, .openNote, .restoreClipboard:
+            return
         }
     }
 }
