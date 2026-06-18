@@ -46,6 +46,7 @@ Sagasu includes fixed Raycast-style window management shortcuts. These do not cu
 | `Control-Shift-Command-K` | Top half |
 
 Window management uses macOS Accessibility. If the shortcuts do not move windows, grant Sagasu permission in System Settings > Privacy & Security > Accessibility.
+After replacing the local app binary, macOS may require removing and adding Sagasu again in Accessibility because the app's code signature changed.
 
 ## Development
 

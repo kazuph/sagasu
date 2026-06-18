@@ -15,7 +15,11 @@ struct WindowManager {
         case topHalf
     }
 
-    func perform(_ command: Command) {
+    func perform(_ command: Command) throws {
+        guard Self.requestAccessibilityPermissionIfNeeded() else {
+            throw LauncherError.accessibilityPermissionRequired
+        }
+
         guard let window = focusedWindow(),
               let currentFrame = frame(of: window) else {
             return
@@ -85,7 +89,13 @@ struct WindowManager {
             )
         }
 
-        set(frame: targetFrame.integral, for: window)
+        try set(frame: targetFrame.integral, for: window)
+    }
+
+    static func requestAccessibilityPermissionIfNeeded(prompt: Bool = true) -> Bool {
+        guard AXIsProcessTrusted() == false else { return true }
+        let options = ["AXTrustedCheckOptionPrompt": prompt] as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
     }
 
     private func focusedWindow() -> AXUIElement? {
@@ -112,7 +122,7 @@ struct WindowManager {
         return CGRect(origin: position, size: size)
     }
 
-    private func set(frame: CGRect, for window: AXUIElement) {
+    private func set(frame: CGRect, for window: AXUIElement) throws {
         var position = frame.origin
         var size = frame.size
         guard let positionValue = AXValueCreate(.cgPoint, &position),
@@ -120,8 +130,11 @@ struct WindowManager {
             return
         }
 
-        AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
-        AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        let positionStatus = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
+        let sizeStatus = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        if positionStatus != .success || sizeStatus != .success {
+            throw LauncherError.accessibilityPermissionRequired
+        }
     }
 
     private func copyAttribute(_ attribute: String, from element: AXUIElement) -> CFTypeRef? {

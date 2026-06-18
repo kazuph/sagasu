@@ -1,6 +1,7 @@
 import Foundation
 
 enum LauncherError: LocalizedError {
+    case accessibilityPermissionRequired
     case clipboardEntryUnavailable
     case clipboardImageMissing
     case clipboardWriteFailed
@@ -11,6 +12,8 @@ enum LauncherError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .accessibilityPermissionRequired:
+            return "Window management needs Accessibility permission for Sagasu. Grant Sagasu access in System Settings > Privacy & Security > Accessibility, then relaunch Sagasu."
         case .clipboardEntryUnavailable:
             return "The selected clipboard history entry is no longer available."
         case .clipboardImageMissing:

@@ -35,6 +35,7 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     func start(configuration: LaunchConfiguration = .current) {
         NSApp.applicationIconImage = SagasuIcon.appIcon()
+        _ = WindowManager.requestAccessibilityPermissionIfNeeded()
         configureStatusItem()
 
         do {
@@ -43,7 +44,7 @@ final class AppCoordinator: NSObject, ObservableObject {
                     self?.toggleLauncher()
                 }
             }
-            try configureWindowManagementHotKeys()
+            configureWindowManagementHotKeys()
         } catch {
             NSApp.presentError(error)
         }
@@ -120,7 +121,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.statusItem = statusItem
     }
 
-    private func configureWindowManagementHotKeys() throws {
+    private func configureWindowManagementHotKeys() {
         let modifiers = UInt32(controlKey | shiftKey | cmdKey)
         let bindings: [(UInt32, WindowManager.Command)] = [
             (UInt32(kVK_ANSI_J), .bottomHalf),
@@ -133,11 +134,20 @@ final class AppCoordinator: NSObject, ObservableObject {
             (UInt32(kVK_ANSI_K), .topHalf)
         ]
 
-        windowHotKeyMonitors = try bindings.map { keyCode, command in
-            try HotKeyMonitor(keyCode: keyCode, modifiers: modifiers) { [weak self] in
-                Task { @MainActor in
-                    self?.windowManager.perform(command)
+        windowHotKeyMonitors = bindings.compactMap { keyCode, command in
+            do {
+                return try HotKeyMonitor(keyCode: keyCode, modifiers: modifiers) { [weak self] in
+                    Task { @MainActor in
+                        do {
+                            try self?.windowManager.perform(command)
+                        } catch {
+                            NSApp.presentError(error)
+                        }
+                    }
                 }
+            } catch {
+                fputs("Sagasu window hotkey registration failed for keyCode \(keyCode): \(error.localizedDescription)\n", stderr)
+                return nil
             }
         }
     }

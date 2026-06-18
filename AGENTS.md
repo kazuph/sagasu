@@ -8,8 +8,8 @@
 
 - For every code or documentation change in this project, continue through verification, commit, push, and local app binary replacement before reporting completion.
 - Use `swift test` as the baseline verification command.
-- Use `Scripts/build-and-open-app.sh` to rebuild `.build/Sagasu.app` and replace `.build/Sagasu.app/Contents/MacOS/Sagasu` with the latest compiled binary.
-- After replacing the app binary, launch the rebuilt app from `.build/Sagasu.app` when runtime verification is relevant.
+- Use `Scripts/build-and-open-app.sh` to rebuild `.build/Sagasu.app`, replace `.build/Sagasu.app/Contents/MacOS/Sagasu`, install the rebuilt app to `~/Applications/Sagasu.app`, and replace `~/Applications/Sagasu.app/Contents/MacOS/Sagasu` with the latest compiled binary.
+- After replacing the app binary, launch and verify the installed app from `~/Applications/Sagasu.app`, because that is the app used by the user's hotkeys and macOS permissions.
 - Do not stop at implementation-only or test-only completion unless the user explicitly asks to pause before commit, push, or binary replacement.
 
 ## Git
