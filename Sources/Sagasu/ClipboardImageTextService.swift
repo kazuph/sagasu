@@ -3,6 +3,9 @@ import Foundation
 import Vision
 
 struct ClipboardImageTextService {
+    static let textRecognitionRevision = VNRecognizeTextRequestRevision3
+    static let textRecognitionLanguages = ["ja-JP", "en-US"]
+
     private let pasteboard: NSPasteboard
     private let fileManager: FileManager
 
@@ -93,9 +96,10 @@ struct ClipboardImageTextService {
     private static func recognizedText(from image: CGImage) async throws -> String {
         try await Task.detached(priority: .userInitiated) {
             let request = VNRecognizeTextRequest()
+            request.revision = textRecognitionRevision
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
-            request.recognitionLanguages = ["en-US", "ja-JP"]
+            request.recognitionLanguages = textRecognitionLanguages
 
             let handler = VNImageRequestHandler(cgImage: image, options: [:])
             try handler.perform([request])

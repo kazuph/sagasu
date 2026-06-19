@@ -1,6 +1,18 @@
 import AppKit
 import Testing
+import Vision
 @testable import Sagasu
+
+@Test
+func clipboardImageOCRUsesJapaneseCapableVisionRevision() throws {
+    let languages = try VNRecognizeTextRequest.supportedRecognitionLanguages(
+        for: .accurate,
+        revision: ClipboardImageTextService.textRecognitionRevision
+    )
+
+    #expect(ClipboardImageTextService.textRecognitionLanguages.first == "ja-JP")
+    #expect(languages.contains("ja-JP"))
+}
 
 @MainActor
 @Test
