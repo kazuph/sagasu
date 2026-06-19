@@ -71,8 +71,8 @@ final class SearchViewModel: ObservableObject {
         refreshSearch()
     }
 
-    func prepareForPresentation() {
-        rawQuery = ""
+    func prepareForPresentation(initialQuery: String = "") {
+        rawQuery = initialQuery
         selectedIndex = 0
         errorMessage = nil
         presentationID = UUID()

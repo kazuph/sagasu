@@ -23,6 +23,17 @@ func presentationAlwaysStartsAtTopResult() async throws {
 
 @MainActor
 @Test
+func presentationCanStartInClipboardMode() async throws {
+    let viewModel = try makeSearchViewModel()
+
+    viewModel.prepareForPresentation(initialQuery: "v ")
+
+    #expect(viewModel.rawQuery == "v ")
+    #expect(viewModel.parsedQuery.mode == .clipboard)
+}
+
+@MainActor
+@Test
 func newSearchResultsDoNotKeepPreviousCursorPosition() async throws {
     let viewModel = try makeSearchViewModel()
 

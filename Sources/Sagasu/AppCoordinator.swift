@@ -9,7 +9,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     let searchEngine: SearchEngine
     let searchViewModel: SearchViewModel
 
-    private var hotKeyMonitor: HotKeyMonitor?
+    private var launcherHotKeyMonitor: LauncherHotKeyMonitor?
     private var windowHotKeyMonitors: [HotKeyMonitor] = []
     private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
@@ -46,9 +46,9 @@ final class AppCoordinator: NSObject, ObservableObject {
         configureStatusItem()
 
         do {
-            hotKeyMonitor = try HotKeyMonitor(keyCode: UInt32(kVK_Space), modifiers: UInt32(cmdKey)) { [weak self] in
+            launcherHotKeyMonitor = try LauncherHotKeyMonitor { [weak self] hotKey in
                 Task { @MainActor in
-                    self?.toggleLauncher()
+                    self?.handleLauncherHotKey(hotKey)
                 }
             }
             configureWindowManagementHotKeys()
@@ -83,14 +83,32 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func toggleLauncher() {
+        toggleLauncher(initialQuery: "")
+    }
+
+    private func handleLauncherHotKey(_ hotKey: LauncherHotKey) {
+        switch hotKey {
+        case .defaultSearch:
+            toggleLauncher(initialQuery: "")
+        case .clipboardHistory:
+            showLauncher(initialQuery: "v ")
+        }
+    }
+
+    private func toggleLauncher(initialQuery: String) {
         guard let launcherPanelController else { return }
 
         if launcherPanelController.isVisible {
             hideLauncher()
         } else {
-            searchViewModel.prepareForPresentation()
+            searchViewModel.prepareForPresentation(initialQuery: initialQuery)
             launcherPanelController.show()
         }
+    }
+
+    private func showLauncher(initialQuery: String) {
+        searchViewModel.prepareForPresentation(initialQuery: initialQuery)
+        launcherPanelController?.show()
     }
 
     func hideLauncher() {

@@ -5,6 +5,7 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 ## Launching
 
 - Press `Command-Space` to open or close Sagasu.
+- Press `Command-Shift-V` to open Sagasu directly in clipboard history mode with `v ` prefilled.
 - Sagasu switches the keyboard input source to an ASCII-capable layout when the launcher search field is focused.
 - Type normally to search applications. Google and ChatGPT routes are also shown for non-empty application searches.
 - Select a result and press `Return` to run it.
@@ -54,6 +55,7 @@ The H/J/K/L commands cycle by inspecting the current window frame, not by counti
 
 Window management uses macOS Accessibility. If the shortcuts do not move windows, grant Sagasu permission in System Settings > Privacy & Security > Accessibility.
 `Scripts/build-and-open-app.sh` signs Sagasu with a stable Apple Development identity when available so macOS can keep the Accessibility permission across rebuilds. If the app is ad-hoc signed, macOS may require removing and adding Sagasu again in Accessibility because the app's code signature changes.
+If macOS opens the input source or Character Viewer popover when using Sagasu's launch shortcut, disable the conflicting macOS keyboard shortcuts for `Command-Space` and `Command-Shift-Space`.
 
 ## Development
 
