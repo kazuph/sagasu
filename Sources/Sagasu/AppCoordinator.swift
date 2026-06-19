@@ -223,9 +223,14 @@ final class AppCoordinator: NSObject, ObservableObject {
                 try NotesSearchService.openNote(withID: noteID)
             case .restoreClipboard(let entryID):
                 try clipboardStore.restore(entryID: entryID)
-            case .saveClipboardImageAndExtractText:
+            case .saveClipboardImage:
                 Task { @MainActor [weak self] in
-                    await self?.saveClipboardImageAndExtractText()
+                    self?.saveClipboardImage()
+                }
+                return
+            case .extractTextFromClipboardImage:
+                Task { @MainActor [weak self] in
+                    await self?.extractTextFromClipboardImage()
                 }
                 return
             case .focusTerminalPane(let paneID):
@@ -238,13 +243,23 @@ final class AppCoordinator: NSObject, ObservableObject {
         }
     }
 
-    private func saveClipboardImageAndExtractText() async {
+    private func saveClipboardImage() {
         do {
-            let result = try await clipboardImageTextService.saveImageAndExtractText()
-            try clipboardStore.addTextEntry(result.recognizedText)
-            try? searchEngine.markUsed(action: .saveClipboardImageAndExtractText)
+            let savedImageURL = try clipboardImageTextService.saveClipboardImage()
+            try? searchEngine.markUsed(action: .saveClipboardImage)
             hideLauncher()
-            NSWorkspace.shared.activateFileViewerSelecting([result.savedImageURL])
+            NSWorkspace.shared.activateFileViewerSelecting([savedImageURL])
+        } catch {
+            searchViewModel.present(error: error)
+        }
+    }
+
+    private func extractTextFromClipboardImage() async {
+        do {
+            let recognizedText = try await clipboardImageTextService.extractTextFromClipboardImage()
+            try clipboardStore.addTextEntry(recognizedText, writingToPasteboard: true)
+            try? searchEngine.markUsed(action: .extractTextFromClipboardImage)
+            hideLauncher()
         } catch {
             searchViewModel.present(error: error)
         }

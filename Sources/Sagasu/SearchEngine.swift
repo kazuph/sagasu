@@ -34,7 +34,7 @@ struct SearchEngine {
     func search(for parsedQuery: ParsedSearchQuery) async throws -> [SearchResult] {
         switch parsedQuery.mode {
         case .applications:
-            let additionalResults = [clipboardImageTextService.searchResult(query: parsedQuery.query)].compactMap { $0 }
+            let additionalResults = clipboardImageTextService.searchResults(query: parsedQuery.query)
             let appResults = applicationSearchService.search(
                 query: parsedQuery.query,
                 usageHistoryStore: usageHistoryStore,
@@ -95,7 +95,7 @@ struct SearchEngine {
             try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
         case .openURL(let url):
             try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
-        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImageAndExtractText, .focusTerminalPane:
+        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImage, .extractTextFromClipboardImage, .focusTerminalPane:
             return
         }
     }

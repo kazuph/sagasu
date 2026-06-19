@@ -36,6 +36,25 @@ func deleteClipboardEntryRemovesStoredTextEntry() throws {
 
 @MainActor
 @Test
+func addTextEntryCanWriteToSystemPasteboard() throws {
+    let fileManager = FileManager.default
+    let baseDirectoryURL = try makeTemporaryClipboardStoreDirectory(fileManager: fileManager)
+    defer { try? fileManager.removeItem(at: baseDirectoryURL) }
+    let pasteboard = NSPasteboard.withUniqueName()
+    let store = ClipboardHistoryStore(
+        fileManager: fileManager,
+        pasteboard: pasteboard,
+        baseDirectoryURL: baseDirectoryURL
+    )
+
+    try store.addTextEntry("recognized text", writingToPasteboard: true)
+
+    #expect(pasteboard.string(forType: .string) == "recognized text")
+    #expect(store.search(query: "recognized").first?.title == "recognized text")
+}
+
+@MainActor
+@Test
 func deleteClipboardEntryRemovesStoredImageFile() throws {
     let fileManager = FileManager.default
     let baseDirectoryURL = try makeTemporaryClipboardStoreDirectory(fileManager: fileManager)

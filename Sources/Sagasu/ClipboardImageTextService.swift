@@ -3,11 +3,6 @@ import Foundation
 import Vision
 
 struct ClipboardImageTextService {
-    struct ExtractionResult {
-        let savedImageURL: URL
-        let recognizedText: String
-    }
-
     private let pasteboard: NSPasteboard
     private let fileManager: FileManager
 
@@ -20,32 +15,53 @@ struct ClipboardImageTextService {
     }
 
     @MainActor
-    func searchResult(query: String) -> SearchResult? {
-        guard hasClipboardImage else { return nil }
+    func searchResults(query: String) -> [SearchResult] {
+        guard hasClipboardImage else { return [] }
 
-        let title = "Image: Save Clipboard Image and Extract Text"
-        let metadata = "image ocr text extract save png downloads clipboard"
         let normalizedQuery = SearchMatcher.normalize(query)
-        if normalizedQuery.isEmpty == false,
-           SearchMatcher.score(
-            query: normalizedQuery,
-            primaryText: SearchMatcher.normalize(title),
-            secondaryText: metadata
-           ) == nil {
-            return nil
+        return [
+            SearchResult(
+                title: "Image: Save Clipboard Image",
+                subtitle: "Save PNG to Downloads",
+                detail: "~/Downloads",
+                visual: .symbol("square.and.arrow.down"),
+                action: .saveClipboardImage
+            ),
+            SearchResult(
+                title: "Image: Extract Text from Clipboard Image",
+                subtitle: "Copy recognized text and add it to clipboard history",
+                detail: "OCR clipboard image",
+                visual: .symbol("text.viewfinder"),
+                action: .extractTextFromClipboardImage
+            )
+        ].filter { result in
+            normalizedQuery.isEmpty || SearchMatcher.score(
+                query: normalizedQuery,
+                primaryText: SearchMatcher.normalize(result.title),
+                secondaryText: SearchMatcher.normalize([result.subtitle, result.detail, "image ocr text extract save png downloads clipboard"].joined(separator: " "))
+            ) != nil
         }
-
-        return SearchResult(
-            title: title,
-            subtitle: "Save PNG to Downloads and add recognized text to clipboard history",
-            detail: "~/Downloads",
-            visual: .symbol("text.viewfinder"),
-            action: .saveClipboardImageAndExtractText
-        )
     }
 
     @MainActor
-    func saveImageAndExtractText() async throws -> ExtractionResult {
+    func saveClipboardImage() throws -> URL {
+        let image = try readClipboardImage()
+        return try savePNG(image.pngData)
+    }
+
+    @MainActor
+    func extractTextFromClipboardImage() async throws -> String {
+        let image = try readClipboardImage()
+        let text = try await Self.recognizedText(from: image.cgImage)
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedText.isEmpty == false else {
+            throw LauncherError.clipboardImageTextNotFound
+        }
+        return trimmedText
+    }
+
+    @MainActor
+    private func readClipboardImage() throws -> (pngData: Data, cgImage: CGImage) {
         guard let image = pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage,
               let pngData = image.pngData(),
               let bitmap = NSBitmapImageRep(data: pngData),
@@ -53,14 +69,7 @@ struct ClipboardImageTextService {
             throw LauncherError.clipboardImageMissing
         }
 
-        let savedURL = try savePNG(pngData)
-        let text = try await Self.recognizedText(from: cgImage)
-        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedText.isEmpty == false else {
-            throw LauncherError.clipboardImageTextNotFound
-        }
-
-        return ExtractionResult(savedImageURL: savedURL, recognizedText: trimmedText)
+        return (pngData, cgImage)
     }
 
     @MainActor
