@@ -48,11 +48,12 @@ Sagasu includes fixed Raycast-style window management shortcuts. These do not cu
 The H/J/K/L commands cycle by inspecting the current window frame, not by counting rapid key presses. The cycle is `1/2 -> 1/3 -> 1/4 -> 2/3 -> 3/4 -> 1/2`.
 
 Window management uses macOS Accessibility. If the shortcuts do not move windows, grant Sagasu permission in System Settings > Privacy & Security > Accessibility.
-After replacing the local app binary, macOS may require removing and adding Sagasu again in Accessibility because the app's code signature changed.
+`Scripts/build-and-open-app.sh` signs Sagasu with a stable Apple Development identity when available so macOS can keep the Accessibility permission across rebuilds. If the app is ad-hoc signed, macOS may require removing and adding Sagasu again in Accessibility because the app's code signature changes.
 
 ## Development
 
 ```sh
 swift test
 swift run Sagasu --show-on-launch
+Scripts/build-and-open-app.sh
 ```
