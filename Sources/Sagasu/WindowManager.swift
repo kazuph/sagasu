@@ -163,8 +163,8 @@ struct WindowManager {
             return
         }
 
-        let positionStatus = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
         let sizeStatus = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        let positionStatus = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
         if positionStatus != .success || sizeStatus != .success {
             throw LauncherError.accessibilityPermissionRequired
         }
