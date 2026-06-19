@@ -13,9 +13,11 @@ final class LauncherWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    func focusSearchField() {
+    func focusSearchField(selectingASCIIInputSource: Bool = false) {
         guard let searchField else { return }
-        KeyboardInputSourceController.selectASCIIInputSource()
+        if selectingASCIIInputSource {
+            KeyboardInputSourceController.selectASCIIInputSource()
+        }
         makeFirstResponder(searchField)
 
         if let textField = searchField as? NSTextField {
@@ -144,7 +146,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
         window.orderFrontRegardless()
 
         DispatchQueue.main.async { [weak window] in
-            (window as? LauncherWindow)?.focusSearchField()
+            (window as? LauncherWindow)?.focusSearchField(selectingASCIIInputSource: true)
         }
     }
 
@@ -189,7 +191,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         isBecomeKeyPending = false
-        (window as? LauncherWindow)?.focusSearchField()
+        (window as? LauncherWindow)?.focusSearchField(selectingASCIIInputSource: true)
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
