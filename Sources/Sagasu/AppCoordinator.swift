@@ -210,6 +210,8 @@ final class AppCoordinator: NSObject, ObservableObject {
                     await self?.saveClipboardImageAndExtractText()
                 }
                 return
+            case .focusTerminalPane(let paneID):
+                try HerdrSearchService().focusPane(withID: paneID)
             }
             try? searchEngine.markUsed(action: action)
             hideLauncher()

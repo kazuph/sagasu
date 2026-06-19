@@ -388,6 +388,8 @@ private extension SearchMode {
             return .cyan
         case .files:
             return .blue
+        case .terminals:
+            return .green
         case .notes:
             return .orange
         case .clipboard:
@@ -403,6 +405,8 @@ private extension SearchMode {
             return "folder"
         case .files:
             return "folder.badge.questionmark"
+        case .terminals:
+            return "terminal"
         case .notes:
             return "note.text.badge.plus"
         case .clipboard:
@@ -418,6 +422,8 @@ private extension SearchMode {
             return query.isEmpty ? "Recent and common directories" : "No directories matched"
         case .files:
             return query.isEmpty ? "Type after `f ` to search files" : "No files matched"
+        case .terminals:
+            return query.isEmpty ? "Herdr panes" : "No Herdr panes matched"
         case .notes:
             return query.isEmpty ? "Type after `n ` to search Notes" : "No notes matched"
         case .clipboard:
@@ -437,6 +443,8 @@ private extension SearchMode {
             return query.isEmpty
                 ? "Search is limited to Desktop, Downloads, Documents, Pictures, Movies, Dropbox, iCloud, and recent places."
                 : "Search is limited to Desktop, Downloads, Documents, Pictures, Movies, Dropbox, iCloud, and recent places."
+        case .terminals:
+            return "Use `t ` to jump to a Herdr workspace, tab, and pane."
         case .notes:
             return query.isEmpty
                 ? "The first Notes search may ask macOS for automation permission."

@@ -15,6 +15,7 @@ final class LauncherWindow: NSWindow {
 
     func focusSearchField() {
         guard let searchField else { return }
+        KeyboardInputSourceController.selectASCIIInputSource()
         makeFirstResponder(searchField)
 
         if let textField = searchField as? NSTextField {

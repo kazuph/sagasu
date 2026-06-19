@@ -6,6 +6,7 @@ struct SearchEngine {
     private let notesSearchService: NotesSearchService
     private let clipboardStore: ClipboardHistoryStore
     private let clipboardImageTextService: ClipboardImageTextService
+    private let herdrSearchService: HerdrSearchService?
     private let webRouteSearchService: WebRouteSearchService
     private let usageHistoryStore: UsageHistoryStore
 
@@ -16,6 +17,7 @@ struct SearchEngine {
         webRouteSearchService: WebRouteSearchService = WebRouteSearchService(),
         clipboardStore: ClipboardHistoryStore,
         clipboardImageTextService: ClipboardImageTextService = ClipboardImageTextService(),
+        herdrSearchService: HerdrSearchService? = try? HerdrSearchService(),
         usageHistoryStore: UsageHistoryStore = UsageHistoryStore()
     ) {
         self.applicationSearchService = applicationSearchService
@@ -23,6 +25,7 @@ struct SearchEngine {
         self.notesSearchService = notesSearchService
         self.clipboardStore = clipboardStore
         self.clipboardImageTextService = clipboardImageTextService
+        self.herdrSearchService = herdrSearchService
         self.webRouteSearchService = webRouteSearchService
         self.usageHistoryStore = usageHistoryStore
     }
@@ -65,6 +68,12 @@ struct SearchEngine {
             return try await Task.detached(priority: .userInitiated) {
                 try fileSearchService.search(query: query)
             }.value
+        case .terminals:
+            guard let herdrSearchService else { return [] }
+            let query = parsedQuery.query
+            return try await Task.detached(priority: .userInitiated) {
+                try herdrSearchService.search(query: query)
+            }.value
         case .notes:
             let notesSearchService = self.notesSearchService
             let query = parsedQuery.query
@@ -86,7 +95,7 @@ struct SearchEngine {
             try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
         case .openURL(let url):
             try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
-        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImageAndExtractText:
+        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImageAndExtractText, .focusTerminalPane:
             return
         }
     }

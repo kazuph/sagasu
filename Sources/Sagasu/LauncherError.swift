@@ -6,6 +6,7 @@ enum LauncherError: LocalizedError {
     case clipboardImageMissing
     case clipboardImageTextNotFound
     case clipboardWriteFailed
+    case herdrUnavailable
     case hotKeyRegistrationFailed(OSStatus)
     case notesAutomationFailed(String)
     case commandFailed(executable: String, message: String)
@@ -23,6 +24,8 @@ enum LauncherError: LocalizedError {
             return "The clipboard image was saved, but no text was recognized in it."
         case .clipboardWriteFailed:
             return "Clipboard history entry could not be written back to the system pasteboard."
+        case .herdrUnavailable:
+            return "Herdr is not available at ~/.local/bin/herdr, /opt/homebrew/bin/herdr, or /usr/local/bin/herdr."
         case .hotKeyRegistrationFailed(let status):
             return "Global hotkey registration failed with status \(status)."
         case .notesAutomationFailed(let message):

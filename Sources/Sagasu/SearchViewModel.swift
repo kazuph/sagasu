@@ -42,11 +42,13 @@ final class SearchViewModel: ObservableObject {
     var helperText: String {
         switch parsedQuery.mode {
         case .applications:
-            return "Default mode. Type `f ` for files, `d ` for directories, `n ` for Notes, `v ` for clipboard history."
+            return "Default mode. Type `f ` for files, `d ` for directories, `t ` for Herdr panes, `n ` for Notes, `v ` for clipboard history."
         case .directories:
             return "Desktop / Downloads / Documents / Music / Pictures / Movies / Dropbox / iCloud / Recent Places"
         case .files:
             return "Top matches include common directories. Files search Desktop / Downloads / Documents / Music / Pictures / Movies / Dropbox / iCloud."
+        case .terminals:
+            return "Search Herdr panes by project, agent, status, workspace, or pane id."
         case .notes:
             return "Searches Notes titles and bodies."
         case .clipboard:
@@ -140,7 +142,7 @@ final class SearchViewModel: ObservableObject {
 
         searchTask = Task { [weak self] in
             do {
-                if parsedQuery.query.isEmpty && parsedQuery.mode != .applications && parsedQuery.mode != .clipboard && parsedQuery.mode != .directories {
+                if parsedQuery.query.isEmpty && parsedQuery.mode != .applications && parsedQuery.mode != .clipboard && parsedQuery.mode != .directories && parsedQuery.mode != .terminals {
                     await MainActor.run {
                         self?.results = []
                         self?.selectedIndex = 0

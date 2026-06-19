@@ -7,6 +7,7 @@ enum SearchAction: Hashable {
     case openNote(String)
     case restoreClipboard(UUID)
     case saveClipboardImageAndExtractText
+    case focusTerminalPane(String)
 }
 
 enum SearchResultVisual: Hashable {

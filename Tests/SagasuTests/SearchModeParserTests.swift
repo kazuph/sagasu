@@ -39,6 +39,15 @@ func parsesDirectoryPrefix() {
 }
 
 @Test
+func parsesTerminalPrefix() {
+    let parsed = SearchModeParser.parse("t sagasu")
+
+    #expect(parsed.mode == .terminals)
+    #expect(parsed.query == "sagasu")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
 func parsesNotesPrefixCaseInsensitively() {
     let parsed = SearchModeParser.parse("N meeting")
 

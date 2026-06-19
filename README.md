@@ -5,6 +5,7 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 ## Launching
 
 - Press `Command-Space` to open or close Sagasu.
+- Sagasu switches the keyboard input source to an ASCII-capable layout when the launcher search field is focused.
 - Type normally to search applications. Google and ChatGPT routes are also shown for non-empty application searches.
 - Select a result and press `Return` to run it.
 
@@ -13,6 +14,7 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 - `f ` searches files and folders. Common directories such as Downloads, Documents, Music, Movies, and Pictures are prioritized, so `f d` can quickly open Downloads or Documents.
 - `F ` with no query shows recently modified folders.
 - `d ` searches directories only.
+- `t ` searches Herdr panes by project directory, agent, status, workspace, or pane id. Pressing `Return` focuses that Herdr pane and activates the terminal app.
 - `n ` searches Apple Notes.
 - `v ` searches clipboard text and image history.
 - `vi ` searches clipboard images only.

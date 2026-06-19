@@ -4,6 +4,7 @@ enum SearchMode: String, CaseIterable {
     case applications
     case directories
     case files
+    case terminals
     case notes
     case clipboard
 
@@ -15,6 +16,8 @@ enum SearchMode: String, CaseIterable {
             return "Directories"
         case .files:
             return "Files"
+        case .terminals:
+            return "Terminals"
         case .notes:
             return "Notes"
         case .clipboard:
@@ -30,6 +33,8 @@ enum SearchMode: String, CaseIterable {
             return "Search directories"
         case .files:
             return "Search files in Desktop, Downloads, Documents, Photos, Movies, Dropbox, iCloud"
+        case .terminals:
+            return "Search Herdr panes"
         case .notes:
             return "Search Apple Notes"
         case .clipboard:
@@ -62,6 +67,10 @@ enum SearchModeParser {
 
         if lowercased.hasPrefix("d ") {
             return ParsedSearchQuery(mode: .directories, query: String(rawValue.dropFirst(2)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("t ") {
+            return ParsedSearchQuery(mode: .terminals, query: String(rawValue.dropFirst(2)).condensedWhitespace(), clipboardImageOnly: false)
         }
 
         if lowercased.hasPrefix("n ") {
