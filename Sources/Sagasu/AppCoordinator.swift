@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 final class AppCoordinator: NSObject, ObservableObject {
     let clipboardStore: ClipboardHistoryStore
+    let clipboardImageTextService: ClipboardImageTextService
     let searchEngine: SearchEngine
     let searchViewModel: SearchViewModel
 
@@ -18,8 +19,13 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     override init() {
         let clipboardStore = ClipboardHistoryStore()
-        let searchEngine = SearchEngine(clipboardStore: clipboardStore)
+        let clipboardImageTextService = ClipboardImageTextService()
+        let searchEngine = SearchEngine(
+            clipboardStore: clipboardStore,
+            clipboardImageTextService: clipboardImageTextService
+        )
         self.clipboardStore = clipboardStore
+        self.clipboardImageTextService = clipboardImageTextService
         self.searchEngine = searchEngine
         self.searchViewModel = SearchViewModel(searchEngine: searchEngine)
         super.init()
@@ -40,7 +46,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         configureStatusItem()
 
         do {
-            hotKeyMonitor = try HotKeyMonitor(keyCode: UInt32(kVK_Space), modifiers: UInt32(optionKey)) { [weak self] in
+            hotKeyMonitor = try HotKeyMonitor(keyCode: UInt32(kVK_Space), modifiers: UInt32(cmdKey)) { [weak self] in
                 Task { @MainActor in
                     self?.toggleLauncher()
                 }
@@ -199,9 +205,26 @@ final class AppCoordinator: NSObject, ObservableObject {
                 try NotesSearchService.openNote(withID: noteID)
             case .restoreClipboard(let entryID):
                 try clipboardStore.restore(entryID: entryID)
+            case .saveClipboardImageAndExtractText:
+                Task { @MainActor [weak self] in
+                    await self?.saveClipboardImageAndExtractText()
+                }
+                return
             }
             try? searchEngine.markUsed(action: action)
             hideLauncher()
+        } catch {
+            searchViewModel.present(error: error)
+        }
+    }
+
+    private func saveClipboardImageAndExtractText() async {
+        do {
+            let result = try await clipboardImageTextService.saveImageAndExtractText()
+            try clipboardStore.addTextEntry(result.recognizedText)
+            try? searchEngine.markUsed(action: .saveClipboardImageAndExtractText)
+            hideLauncher()
+            NSWorkspace.shared.activateFileViewerSelecting([result.savedImageURL])
         } catch {
             searchViewModel.present(error: error)
         }

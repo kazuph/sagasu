@@ -191,6 +191,14 @@ final class ClipboardHistoryStore: ObservableObject {
         try persistState()
     }
 
+    func addTextEntry(_ text: String) throws {
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedText.isEmpty == false else {
+            throw LauncherError.clipboardImageTextNotFound
+        }
+        try insert(text: trimmedText)
+    }
+
     private func captureIfNeeded() {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastObservedChangeCount else { return }

@@ -4,19 +4,22 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 
 ## Launching
 
-- Press `Option-Space` to open or close Sagasu.
+- Press `Command-Space` to open or close Sagasu.
 - Type normally to search applications. Google and ChatGPT routes are also shown for non-empty application searches.
 - Select a result and press `Return` to run it.
 
 ## Search prefixes
 
-- `f ` searches files and folders.
+- `f ` searches files and folders. Common directories such as Downloads, Documents, Music, Movies, and Pictures are prioritized, so `f d` can quickly open Downloads or Documents.
 - `F ` with no query shows recently modified folders.
+- `d ` searches directories only.
 - `n ` searches Apple Notes.
 - `v ` searches clipboard text and image history.
 - `vi ` searches clipboard images only.
 
 When Sagasu opens with an empty query, recently modified folders are mixed near the top of the default application list. This makes recent work folders available immediately without switching modes. If you type `f ` first, Sagasu switches to folder/file mode and only folder/file results are shown.
+Finder is indexed from `/System/Library/CoreServices`, so typing `finder` opens Finder from the application list.
+If the system clipboard contains an image, the default application search includes `Image: Save Clipboard Image and Extract Text`. It is searchable with English terms such as `i`, `image`, `ocr`, `text`, `extract`, `save`, or `downloads`; running it saves the image to `~/Downloads` and adds the recognized text to the latest clipboard history entry.
 
 ## History behavior
 

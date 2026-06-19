@@ -15,14 +15,19 @@ struct ApplicationSearchService: Sendable {
         applications = Self.loadApplications(fileManager: fileManager)
     }
 
-    func search(query: String, limit: Int = 40, usageHistoryStore: UsageHistoryStore? = nil) -> [SearchResult] {
+    func search(
+        query: String,
+        limit: Int = 40,
+        usageHistoryStore: UsageHistoryStore? = nil,
+        additionalResults: [SearchResult] = []
+    ) -> [SearchResult] {
         let normalizedQuery = SearchMatcher.normalize(query)
         let runningBundleIdentifiers = Set(
             NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
         )
         let now = Date()
 
-        let ranked: [(SearchResult, Int)] = applications.compactMap { application in
+        var ranked: [(SearchResult, Int)] = applications.compactMap { application in
             let score: Int
             if normalizedQuery.isEmpty {
                 score = runningBundleIdentifiers.contains(application.bundleIdentifier) ? 1_000 : 500
@@ -52,6 +57,23 @@ struct ApplicationSearchService: Sendable {
             return (result, score + usageBoost)
         }
 
+        ranked.append(contentsOf: additionalResults.compactMap { result in
+            let score: Int
+            if normalizedQuery.isEmpty {
+                score = 500
+            } else if let matchedScore = SearchMatcher.score(
+                query: normalizedQuery,
+                primaryText: SearchMatcher.normalize(result.title),
+                secondaryText: SearchMatcher.normalize([result.subtitle, result.detail].joined(separator: " "))
+            ) {
+                score = matchedScore
+            } else {
+                return nil
+            }
+
+            return (result, score)
+        })
+
         return ranked
             .sorted { lhs, rhs in
                 if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
@@ -67,6 +89,7 @@ struct ApplicationSearchService: Sendable {
             URL(fileURLWithPath: "/Applications/Utilities"),
             URL(fileURLWithPath: "/System/Applications"),
             URL(fileURLWithPath: "/System/Applications/Utilities"),
+            URL(fileURLWithPath: "/System/Library/CoreServices"),
             fileManager.homeDirectoryForCurrentUser.appending(path: "Applications")
         ]
 

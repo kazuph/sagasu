@@ -3,9 +3,12 @@ import UniformTypeIdentifiers
 
 struct FileSearchService: Sendable {
     private let scopes: [URL]
+    private let commonDirectories: [URL]
 
-    init(fileManager: FileManager = .default, scopes: [URL]? = nil) {
-        self.scopes = scopes ?? Self.resolveScopes(fileManager: fileManager)
+    init(fileManager: FileManager = .default, scopes: [URL]? = nil, commonDirectories: [URL]? = nil) {
+        let resolvedCommonDirectories = commonDirectories ?? Self.resolveCommonDirectories(fileManager: fileManager)
+        self.commonDirectories = resolvedCommonDirectories
+        self.scopes = scopes ?? Self.resolveScopes(fileManager: fileManager, commonDirectories: resolvedCommonDirectories)
     }
 
     func search(query: String, limit: Int = 40) throws -> [SearchResult] {
@@ -14,14 +17,16 @@ struct FileSearchService: Sendable {
             return recentFolders(limit: min(limit, 40))
         }
 
+        var seenPaths = Set<String>()
+        var results = directorySearch(query: trimmedQuery, limit: min(8, limit), includingRecent: false, excluding: &seenPaths)
+
         let commandRunner = ShellCommandRunner()
         let output = try commandRunner.run(
             executableURL: URL(fileURLWithPath: "/usr/bin/mdfind"),
             arguments: buildArguments(for: trimmedQuery)
         )
 
-        var seenPaths = Set<String>()
-        var results = output
+        let spotlightResults = output
             .split(whereSeparator: \.isNewline)
             .compactMap { line -> SearchResult? in
                 let path = String(line)
@@ -30,6 +35,7 @@ struct FileSearchService: Sendable {
                 guard seenPaths.insert(path).inserted else { return nil }
                 return makeResult(for: url)
             }
+        results.append(contentsOf: spotlightResults)
 
         if results.count < limit {
             let fallbackResults = fallbackSearch(query: trimmedQuery, limit: limit - results.count, excluding: seenPaths)
@@ -37,6 +43,16 @@ struct FileSearchService: Sendable {
         }
 
         return Array(results.prefix(limit))
+    }
+
+    func searchDirectories(query: String, limit: Int = 40) -> [SearchResult] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var seenPaths = Set<String>()
+        guard trimmedQuery.isEmpty == false else {
+            return directorySearch(query: "", limit: limit, includingRecent: true, excluding: &seenPaths)
+        }
+
+        return directorySearch(query: trimmedQuery, limit: limit, includingRecent: true, excluding: &seenPaths)
     }
 
     func recentFolders(limit: Int = 12) -> [SearchResult] {
@@ -80,6 +96,41 @@ struct FileSearchService: Sendable {
             }
             .prefix(limit)
             .map { makeResult(for: $0.0) }
+    }
+
+    private func directorySearch(
+        query: String,
+        limit: Int,
+        includingRecent: Bool,
+        excluding seenPaths: inout Set<String>
+    ) -> [SearchResult] {
+        guard limit > 0 else { return [] }
+        let normalizedQuery = SearchMatcher.normalize(query)
+        var results: [SearchResult] = []
+
+        for directory in commonDirectories {
+            guard seenPaths.insert(directory.standardizedFileURL.path).inserted else { continue }
+            let primary = SearchMatcher.normalize(directory.lastPathComponent)
+            let secondary = SearchMatcher.normalize(directory.path)
+            if normalizedQuery.isEmpty || SearchMatcher.score(query: normalizedQuery, primaryText: primary, secondaryText: secondary) != nil {
+                results.append(makeResult(for: directory))
+            }
+            if results.count >= limit { return results }
+        }
+
+        guard includingRecent || normalizedQuery.isEmpty == false else { return results }
+        for result in recentFolders(limit: limit * 2) {
+            let standardizedPath = URL(fileURLWithPath: result.detail).standardizedFileURL.path
+            guard seenPaths.insert(standardizedPath).inserted else { continue }
+            let primary = SearchMatcher.normalize(result.title)
+            let secondary = SearchMatcher.normalize(result.detail)
+            if normalizedQuery.isEmpty || SearchMatcher.score(query: normalizedQuery, primaryText: primary, secondaryText: secondary) != nil {
+                results.append(result)
+            }
+            if results.count >= limit { break }
+        }
+
+        return results
     }
 
     private func buildArguments(for query: String) -> [String] {
@@ -207,19 +258,26 @@ struct FileSearchService: Sendable {
             .map { makeResult(for: $0.0) }
     }
 
-    private static func resolveScopes(fileManager: FileManager) -> [URL] {
-        var result: [URL] = []
+    private static func resolveCommonDirectories(fileManager: FileManager) -> [URL] {
         let home = fileManager.homeDirectoryForCurrentUser
-        let standardDirectories: [URL] = [
+        let directories: [URL] = [
             home.appending(path: "Desktop"),
             home.appending(path: "Downloads"),
             home.appending(path: "Documents"),
+            home.appending(path: "Music"),
             home.appending(path: "Pictures"),
             home.appending(path: "Movies"),
             home.appending(path: "Library/Recent Places")
         ]
 
-        result.append(contentsOf: standardDirectories.filter { fileManager.fileExists(atPath: $0.path) })
+        return directories.filter { fileManager.fileExists(atPath: $0.path) }
+    }
+
+    private static func resolveScopes(fileManager: FileManager, commonDirectories: [URL]) -> [URL] {
+        var result: [URL] = []
+        let home = fileManager.homeDirectoryForCurrentUser
+
+        result.append(contentsOf: commonDirectories)
 
         let dropboxCandidates = [
             home.appending(path: "Dropbox"),

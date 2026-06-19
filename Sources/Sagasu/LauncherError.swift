@@ -4,6 +4,7 @@ enum LauncherError: LocalizedError {
     case accessibilityPermissionRequired
     case clipboardEntryUnavailable
     case clipboardImageMissing
+    case clipboardImageTextNotFound
     case clipboardWriteFailed
     case hotKeyRegistrationFailed(OSStatus)
     case notesAutomationFailed(String)
@@ -18,6 +19,8 @@ enum LauncherError: LocalizedError {
             return "The selected clipboard history entry is no longer available."
         case .clipboardImageMissing:
             return "The saved clipboard image could not be restored because its backing file is missing."
+        case .clipboardImageTextNotFound:
+            return "The clipboard image was saved, but no text was recognized in it."
         case .clipboardWriteFailed:
             return "Clipboard history entry could not be written back to the system pasteboard."
         case .hotKeyRegistrationFailed(let status):

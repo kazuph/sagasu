@@ -30,6 +30,15 @@ func parsesUppercaseFilePrefixWithEmptyQuery() {
 }
 
 @Test
+func parsesDirectoryPrefix() {
+    let parsed = SearchModeParser.parse("d down")
+
+    #expect(parsed.mode == .directories)
+    #expect(parsed.query == "down")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
 func parsesNotesPrefixCaseInsensitively() {
     let parsed = SearchModeParser.parse("N meeting")
 

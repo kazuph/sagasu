@@ -384,6 +384,8 @@ private extension SearchMode {
         switch self {
         case .applications:
             return .accentColor
+        case .directories:
+            return .cyan
         case .files:
             return .blue
         case .notes:
@@ -397,6 +399,8 @@ private extension SearchMode {
         switch self {
         case .applications:
             return "app.badge"
+        case .directories:
+            return "folder"
         case .files:
             return "folder.badge.questionmark"
         case .notes:
@@ -410,6 +414,8 @@ private extension SearchMode {
         switch self {
         case .applications:
             return query.isEmpty ? "Search applications" : "No applications matched"
+        case .directories:
+            return query.isEmpty ? "Recent and common directories" : "No directories matched"
         case .files:
             return query.isEmpty ? "Type after `f ` to search files" : "No files matched"
         case .notes:
@@ -423,8 +429,10 @@ private extension SearchMode {
         switch self {
         case .applications:
             return query.isEmpty
-                ? "Option + Space opens in application-first mode, with Google and ChatGPT routes once you type."
+                ? "Command + Space opens in application-first mode, with Google and ChatGPT routes once you type."
                 : "Try a shorter app name or use the Google / ChatGPT routes shown in default mode."
+        case .directories:
+            return "Use `d ` for directories only, or `f ` when you also want file results."
         case .files:
             return query.isEmpty
                 ? "Search is limited to Desktop, Downloads, Documents, Pictures, Movies, Dropbox, iCloud, and recent places."

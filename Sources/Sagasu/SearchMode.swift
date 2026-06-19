@@ -2,6 +2,7 @@ import Foundation
 
 enum SearchMode: String, CaseIterable {
     case applications
+    case directories
     case files
     case notes
     case clipboard
@@ -10,6 +11,8 @@ enum SearchMode: String, CaseIterable {
         switch self {
         case .applications:
             return "Applications"
+        case .directories:
+            return "Directories"
         case .files:
             return "Files"
         case .notes:
@@ -23,6 +26,8 @@ enum SearchMode: String, CaseIterable {
         switch self {
         case .applications:
             return "Search applications, Google, or ChatGPT"
+        case .directories:
+            return "Search directories"
         case .files:
             return "Search files in Desktop, Downloads, Documents, Photos, Movies, Dropbox, iCloud"
         case .notes:
@@ -53,6 +58,10 @@ enum SearchModeParser {
 
         if lowercased.hasPrefix("f ") {
             return ParsedSearchQuery(mode: .files, query: String(rawValue.dropFirst(2)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("d ") {
+            return ParsedSearchQuery(mode: .directories, query: String(rawValue.dropFirst(2)).condensedWhitespace(), clipboardImageOnly: false)
         }
 
         if lowercased.hasPrefix("n ") {

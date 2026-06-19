@@ -6,6 +6,7 @@ enum SearchAction: Hashable {
     case openURLInPreferredBrowser(URL, bundleIdentifier: String)
     case openNote(String)
     case restoreClipboard(UUID)
+    case saveClipboardImageAndExtractText
 }
 
 enum SearchResultVisual: Hashable {

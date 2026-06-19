@@ -5,6 +5,7 @@ struct SearchEngine {
     private let fileSearchService: FileSearchService
     private let notesSearchService: NotesSearchService
     private let clipboardStore: ClipboardHistoryStore
+    private let clipboardImageTextService: ClipboardImageTextService
     private let webRouteSearchService: WebRouteSearchService
     private let usageHistoryStore: UsageHistoryStore
 
@@ -14,24 +15,30 @@ struct SearchEngine {
         notesSearchService: NotesSearchService = NotesSearchService(),
         webRouteSearchService: WebRouteSearchService = WebRouteSearchService(),
         clipboardStore: ClipboardHistoryStore,
+        clipboardImageTextService: ClipboardImageTextService = ClipboardImageTextService(),
         usageHistoryStore: UsageHistoryStore = UsageHistoryStore()
     ) {
         self.applicationSearchService = applicationSearchService
         self.fileSearchService = fileSearchService
         self.notesSearchService = notesSearchService
         self.clipboardStore = clipboardStore
+        self.clipboardImageTextService = clipboardImageTextService
         self.webRouteSearchService = webRouteSearchService
         self.usageHistoryStore = usageHistoryStore
     }
 
+    @MainActor
     func search(for parsedQuery: ParsedSearchQuery) async throws -> [SearchResult] {
         switch parsedQuery.mode {
         case .applications:
+            let additionalResults = [clipboardImageTextService.searchResult(query: parsedQuery.query)].compactMap { $0 }
             let appResults = applicationSearchService.search(
                 query: parsedQuery.query,
-                usageHistoryStore: usageHistoryStore
+                usageHistoryStore: usageHistoryStore,
+                additionalResults: additionalResults
             )
             if parsedQuery.query.isEmpty {
+                let fileSearchService = self.fileSearchService
                 let recentFolders = await Task.detached(priority: .userInitiated) {
                     fileSearchService.recentFolders(limit: 10)
                 }.value
@@ -46,6 +53,12 @@ struct SearchEngine {
             mergedResults.append(contentsOf: webResults)
             mergedResults.append(contentsOf: appResults.dropFirst(prioritizedApplicationCount))
             return mergedResults
+        case .directories:
+            let fileSearchService = self.fileSearchService
+            let query = parsedQuery.query
+            return await Task.detached(priority: .userInitiated) {
+                fileSearchService.searchDirectories(query: query)
+            }.value
         case .files:
             let fileSearchService = self.fileSearchService
             let query = parsedQuery.query
@@ -73,7 +86,7 @@ struct SearchEngine {
             try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
         case .openURL(let url):
             try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
-        case .openURLInPreferredBrowser, .openNote, .restoreClipboard:
+        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImageAndExtractText:
             return
         }
     }
