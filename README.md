@@ -36,14 +36,16 @@ Sagasu includes fixed Raycast-style window management shortcuts. These do not cu
 
 | Shortcut | Action |
 | --- | --- |
-| `Control-Shift-Command-J` | Bottom half |
+| `Control-Shift-Command-J` | Bottom height cycle |
 | `Control-Shift-Command-I` | Center third |
-| `Control-Shift-Command-H` | Left half |
+| `Control-Shift-Command-H` | Left width cycle |
 | `Control-Shift-Command-Return` | Maximize |
 | `Control-Shift-Command-Y` | Next display |
 | `Control-Shift-Command-P` | Previous display |
-| `Control-Shift-Command-L` | Right half |
-| `Control-Shift-Command-K` | Top half |
+| `Control-Shift-Command-L` | Right width cycle |
+| `Control-Shift-Command-K` | Top height cycle |
+
+The H/J/K/L commands cycle by inspecting the current window frame, not by counting rapid key presses. The cycle is `1/2 -> 1/3 -> 1/4 -> 2/3 -> 3/4 -> 1/2`.
 
 Window management uses macOS Accessibility. If the shortcuts do not move windows, grant Sagasu permission in System Settings > Privacy & Security > Accessibility.
 After replacing the local app binary, macOS may require removing and adding Sagasu again in Accessibility because the app's code signature changed.

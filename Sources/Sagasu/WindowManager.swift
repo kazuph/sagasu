@@ -45,11 +45,12 @@ struct WindowManager {
 
         switch command {
         case .bottomHalf:
+            let fraction = Self.nextCycleFraction(current: currentFrame.height / visibleFrame.height)
             targetFrame = CGRect(
                 x: visibleFrame.minX,
-                y: visibleFrame.midY,
+                y: visibleFrame.maxY - visibleFrame.height * fraction,
                 width: visibleFrame.width,
-                height: visibleFrame.height / 2
+                height: visibleFrame.height * fraction
             )
         case .centerThird:
             targetFrame = CGRect(
@@ -59,10 +60,11 @@ struct WindowManager {
                 height: visibleFrame.height
             )
         case .leftHalf:
+            let fraction = Self.nextCycleFraction(current: currentFrame.width / visibleFrame.width)
             targetFrame = CGRect(
                 x: visibleFrame.minX,
                 y: visibleFrame.minY,
-                width: visibleFrame.width / 2,
+                width: visibleFrame.width * fraction,
                 height: visibleFrame.height
             )
         case .maximize:
@@ -74,18 +76,21 @@ struct WindowManager {
             let targetIndex = (currentScreenIndex - 1 + screens.count) % screens.count
             targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: axVisibleFrame(for: screens[targetIndex]))
         case .rightHalf:
+            let fraction = Self.nextCycleFraction(current: currentFrame.width / visibleFrame.width)
+            let width = visibleFrame.width * fraction
             targetFrame = CGRect(
-                x: visibleFrame.midX,
+                x: visibleFrame.maxX - width,
                 y: visibleFrame.minY,
-                width: visibleFrame.width / 2,
+                width: width,
                 height: visibleFrame.height
             )
         case .topHalf:
+            let fraction = Self.nextCycleFraction(current: currentFrame.height / visibleFrame.height)
             targetFrame = CGRect(
                 x: visibleFrame.minX,
                 y: visibleFrame.minY,
                 width: visibleFrame.width,
-                height: visibleFrame.height / 2
+                height: visibleFrame.height * fraction
             )
         }
 
@@ -100,6 +105,23 @@ struct WindowManager {
 
     static var isAccessibilityTrusted: Bool {
         AXIsProcessTrusted()
+    }
+
+    static func nextCycleFraction(current: CGFloat) -> CGFloat {
+        let cycle: [CGFloat] = [
+            1.0 / 2.0,
+            1.0 / 3.0,
+            1.0 / 4.0,
+            2.0 / 3.0,
+            3.0 / 4.0
+        ]
+        let tolerance: CGFloat = 0.035
+
+        guard let currentIndex = cycle.firstIndex(where: { abs($0 - current) <= tolerance }) else {
+            return cycle[0]
+        }
+
+        return cycle[(currentIndex + 1) % cycle.count]
     }
 
     static func openAccessibilitySettings() {

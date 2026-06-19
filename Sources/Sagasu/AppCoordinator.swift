@@ -114,6 +114,15 @@ final class AppCoordinator: NSObject, ObservableObject {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Open Sagasu", action: #selector(showLauncherFromStatusItem(_:)), keyEquivalent: ""))
         menu.addItem(.separator())
+        let windowManagementItem = NSMenuItem(title: "Window Management", action: nil, keyEquivalent: "")
+        windowManagementItem.isEnabled = false
+        menu.addItem(windowManagementItem)
+        for title in Self.windowManagementShortcutTitles {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Sagasu", action: #selector(quitFromStatusItem(_:)), keyEquivalent: "q"))
         for item in menu.items {
             item.target = self
@@ -121,6 +130,17 @@ final class AppCoordinator: NSObject, ObservableObject {
         statusItem.menu = menu
         self.statusItem = statusItem
     }
+
+    private static let windowManagementShortcutTitles = [
+        "⌃⇧⌘H  Left width cycle",
+        "⌃⇧⌘J  Bottom height cycle",
+        "⌃⇧⌘K  Top height cycle",
+        "⌃⇧⌘L  Right width cycle",
+        "⌃⇧⌘I  Center third",
+        "⌃⇧⌘↩  Maximize",
+        "⌃⇧⌘Y  Next display",
+        "⌃⇧⌘P  Previous display"
+    ]
 
     private func configureWindowManagementHotKeys() {
         let modifiers = UInt32(controlKey | shiftKey | cmdKey)
