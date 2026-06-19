@@ -54,6 +54,12 @@ Window management uses macOS Accessibility. If the shortcuts do not move windows
 
 ```sh
 swift test
-swift run Sagasu --show-on-launch
-Scripts/build-and-open-app.sh
+make app
+make install
+make package
 ```
+
+`make app` builds a signed release app at `dist/Sagasu.app`. `make install`
+copies that signed app to `~/Applications/Sagasu.app` and launches it. `make
+package` creates `Sagasu-<version>.zip`, `Sagasu-<version>.dmg`, and
+`checksums.txt` under `dist/release`.
