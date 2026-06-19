@@ -4,6 +4,34 @@ import Foundation
 
 @MainActor
 struct WindowManager {
+    private enum CycleEdge: Hashable {
+        case left
+        case right
+        case top
+        case bottom
+    }
+
+    private struct CycleKey: Hashable {
+        let processIdentifier: pid_t
+        let edge: CycleEdge
+    }
+
+    private struct CycleState {
+        let fraction: CGFloat
+        let updatedAt: Date
+    }
+
+    private static let cycle: [CGFloat] = [
+        1.0 / 2.0,
+        1.0 / 3.0,
+        1.0 / 4.0,
+        2.0 / 3.0,
+        3.0 / 4.0
+    ]
+    private static let cycleTolerance: CGFloat = 0.035
+    private static let cycleStateLifetime: TimeInterval = 8
+    private static var cycleStates: [CycleKey: CycleState] = [:]
+
     enum Command {
         case bottomHalf
         case centerThird
@@ -20,7 +48,8 @@ struct WindowManager {
             throw LauncherError.accessibilityPermissionRequired
         }
 
-        guard let window = focusedWindow(),
+        guard let application = NSWorkspace.shared.frontmostApplication,
+              let window = focusedWindow(for: application),
               let currentFrame = frame(of: window) else {
             return
         }
@@ -42,16 +71,25 @@ struct WindowManager {
         let screen = screens[currentScreenIndex]
         let visibleFrame = axVisibleFrame(for: screen)
         let targetFrame: CGRect
+        let cycleKey: CycleKey?
+        let cycleFraction: CGFloat?
 
         switch command {
         case .bottomHalf:
-            let fraction = Self.nextCycleFraction(current: currentFrame.height / visibleFrame.height)
+            let key = CycleKey(processIdentifier: application.processIdentifier, edge: .bottom)
+            let fraction = Self.nextCycleFraction(
+                current: currentFrame.height / visibleFrame.height,
+                key: key,
+                isStillOnSameEdge: Self.isFrame(currentFrame, alignedTo: .bottom, in: visibleFrame)
+            )
             targetFrame = CGRect(
                 x: visibleFrame.minX,
                 y: visibleFrame.maxY - visibleFrame.height * fraction,
                 width: visibleFrame.width,
                 height: visibleFrame.height * fraction
             )
+            cycleKey = key
+            cycleFraction = fraction
         case .centerThird:
             targetFrame = CGRect(
                 x: visibleFrame.minX + visibleFrame.width / 3,
@@ -59,24 +97,44 @@ struct WindowManager {
                 width: visibleFrame.width / 3,
                 height: visibleFrame.height
             )
+            cycleKey = nil
+            cycleFraction = nil
         case .leftHalf:
-            let fraction = Self.nextCycleFraction(current: currentFrame.width / visibleFrame.width)
+            let key = CycleKey(processIdentifier: application.processIdentifier, edge: .left)
+            let fraction = Self.nextCycleFraction(
+                current: currentFrame.width / visibleFrame.width,
+                key: key,
+                isStillOnSameEdge: Self.isFrame(currentFrame, alignedTo: .left, in: visibleFrame)
+            )
             targetFrame = CGRect(
                 x: visibleFrame.minX,
                 y: visibleFrame.minY,
                 width: visibleFrame.width * fraction,
                 height: visibleFrame.height
             )
+            cycleKey = key
+            cycleFraction = fraction
         case .maximize:
             targetFrame = visibleFrame
+            cycleKey = nil
+            cycleFraction = nil
         case .nextDisplay:
             let targetIndex = (currentScreenIndex + 1) % screens.count
             targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: axVisibleFrame(for: screens[targetIndex]))
+            cycleKey = nil
+            cycleFraction = nil
         case .previousDisplay:
             let targetIndex = (currentScreenIndex - 1 + screens.count) % screens.count
             targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: axVisibleFrame(for: screens[targetIndex]))
+            cycleKey = nil
+            cycleFraction = nil
         case .rightHalf:
-            let fraction = Self.nextCycleFraction(current: currentFrame.width / visibleFrame.width)
+            let key = CycleKey(processIdentifier: application.processIdentifier, edge: .right)
+            let fraction = Self.nextCycleFraction(
+                current: currentFrame.width / visibleFrame.width,
+                key: key,
+                isStillOnSameEdge: Self.isFrame(currentFrame, alignedTo: .right, in: visibleFrame)
+            )
             let width = visibleFrame.width * fraction
             targetFrame = CGRect(
                 x: visibleFrame.maxX - width,
@@ -84,17 +142,29 @@ struct WindowManager {
                 width: width,
                 height: visibleFrame.height
             )
+            cycleKey = key
+            cycleFraction = fraction
         case .topHalf:
-            let fraction = Self.nextCycleFraction(current: currentFrame.height / visibleFrame.height)
+            let key = CycleKey(processIdentifier: application.processIdentifier, edge: .top)
+            let fraction = Self.nextCycleFraction(
+                current: currentFrame.height / visibleFrame.height,
+                key: key,
+                isStillOnSameEdge: Self.isFrame(currentFrame, alignedTo: .top, in: visibleFrame)
+            )
             targetFrame = CGRect(
                 x: visibleFrame.minX,
                 y: visibleFrame.minY,
                 width: visibleFrame.width,
                 height: visibleFrame.height * fraction
             )
+            cycleKey = key
+            cycleFraction = fraction
         }
 
         try set(frame: targetFrame.integral, for: window)
+        if let cycleKey, let cycleFraction {
+            Self.recordCycle(fraction: cycleFraction, for: cycleKey)
+        }
     }
 
     static func requestAccessibilityPermissionIfNeeded(prompt: Bool = true) -> Bool {
@@ -108,20 +178,21 @@ struct WindowManager {
     }
 
     static func nextCycleFraction(current: CGFloat) -> CGFloat {
-        let cycle: [CGFloat] = [
-            1.0 / 2.0,
-            1.0 / 3.0,
-            1.0 / 4.0,
-            2.0 / 3.0,
-            3.0 / 4.0
-        ]
-        let tolerance: CGFloat = 0.035
-
-        guard let currentIndex = cycle.firstIndex(where: { abs($0 - current) <= tolerance }) else {
+        guard let currentIndex = cycle.firstIndex(where: { abs($0 - current) <= cycleTolerance }) else {
             return cycle[0]
         }
 
         return cycle[(currentIndex + 1) % cycle.count]
+    }
+
+    static func nextCycleFraction(current: CGFloat, previous: CGFloat?, isStillOnSameEdge: Bool) -> CGFloat {
+        if isStillOnSameEdge,
+           let previous,
+           let previousIndex = cycle.firstIndex(where: { abs($0 - previous) <= cycleTolerance }) {
+            return cycle[(previousIndex + 1) % cycle.count]
+        }
+
+        return nextCycleFraction(current: current)
     }
 
     static func openAccessibilitySettings() {
@@ -131,8 +202,7 @@ struct WindowManager {
         NSWorkspace.shared.open(url)
     }
 
-    private func focusedWindow() -> AXUIElement? {
-        guard let application = NSWorkspace.shared.frontmostApplication else { return nil }
+    private func focusedWindow(for application: NSRunningApplication) -> AXUIElement? {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
         if let focused = copyWindowAttribute(kAXFocusedWindowAttribute, from: appElement) {
             return focused
@@ -216,5 +286,38 @@ struct WindowManager {
         let y = destination.minY + (destination.height - height) * yRatio
 
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    private static func nextCycleFraction(current: CGFloat, key: CycleKey, isStillOnSameEdge: Bool) -> CGFloat {
+        cleanupCycleStates()
+        return nextCycleFraction(
+            current: current,
+            previous: cycleStates[key]?.fraction,
+            isStillOnSameEdge: isStillOnSameEdge
+        )
+    }
+
+    private static func recordCycle(fraction: CGFloat, for key: CycleKey) {
+        cycleStates[key] = CycleState(fraction: fraction, updatedAt: Date())
+    }
+
+    private static func cleanupCycleStates(now: Date = Date()) {
+        cycleStates = cycleStates.filter { _, state in
+            now.timeIntervalSince(state.updatedAt) <= cycleStateLifetime
+        }
+    }
+
+    private static func isFrame(_ frame: CGRect, alignedTo edge: CycleEdge, in visibleFrame: CGRect) -> Bool {
+        let tolerance: CGFloat = 8
+        switch edge {
+        case .left:
+            return abs(frame.minX - visibleFrame.minX) <= tolerance || frame.midX <= visibleFrame.midX
+        case .right:
+            return abs(frame.maxX - visibleFrame.maxX) <= tolerance || frame.midX >= visibleFrame.midX
+        case .top:
+            return abs(frame.minY - visibleFrame.minY) <= tolerance || frame.midY <= visibleFrame.midY
+        case .bottom:
+            return abs(frame.maxY - visibleFrame.maxY) <= tolerance || frame.midY >= visibleFrame.midY
+        }
     }
 }
