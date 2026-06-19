@@ -13,11 +13,8 @@ final class LauncherWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    func focusSearchField(selectingASCIIInputSource: Bool = false) {
+    func focusSearchField() {
         guard let searchField else { return }
-        if selectingASCIIInputSource {
-            KeyboardInputSourceController.selectASCIIInputSource()
-        }
         makeFirstResponder(searchField)
 
         if let textField = searchField as? NSTextField {
@@ -86,6 +83,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
 
     private var isBecomeKeyPending = false
     private var lastShownAt: Date?
+    private var inputSourceSelectionGeneration = 0
     var onDismiss: (() -> Void)?
 
     var isVisible: Bool {
@@ -146,8 +144,9 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
         window.orderFrontRegardless()
 
         DispatchQueue.main.async { [weak window] in
-            (window as? LauncherWindow)?.focusSearchField(selectingASCIIInputSource: true)
+            (window as? LauncherWindow)?.focusSearchField()
         }
+        scheduleASCIIInputSourceSelection()
     }
 
     func hide() {
@@ -165,6 +164,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
         NSAnimationContext.endGrouping()
         isBecomeKeyPending = false
         lastShownAt = nil
+        inputSourceSelectionGeneration += 1
         NSApp.setActivationPolicy(.accessory)
         onDismiss?()
     }
@@ -191,7 +191,8 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         isBecomeKeyPending = false
-        (window as? LauncherWindow)?.focusSearchField(selectingASCIIInputSource: true)
+        (window as? LauncherWindow)?.focusSearchField()
+        scheduleASCIIInputSourceSelection()
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -213,6 +214,23 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
             return
         }
         hide()
+    }
+
+    private func scheduleASCIIInputSourceSelection(attempt: Int = 0) {
+        inputSourceSelectionGeneration += 1
+        let generation = inputSourceSelectionGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.18 : 0.06)) { [weak self] in
+            guard let self, generation == self.inputSourceSelectionGeneration else { return }
+            guard self.window?.isVisible == true else { return }
+
+            if NSEvent.modifierFlags.contains(.command), attempt < 12 {
+                self.scheduleASCIIInputSourceSelection(attempt: attempt + 1)
+                return
+            }
+
+            KeyboardInputSourceController.selectASCIIInputSource()
+            (self.window as? LauncherWindow)?.focusSearchField()
+        }
     }
 
     private func frameForPresentation() -> NSRect {
