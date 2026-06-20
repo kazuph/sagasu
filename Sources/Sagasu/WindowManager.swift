@@ -54,22 +54,22 @@ struct WindowManager {
             return
         }
 
+        let primaryScreenFrame = NSScreen.screens.first?.frame ?? .zero
         let screens = NSScreen.screens
             .sorted { lhs, rhs in
-                lhs.frame.minX < rhs.frame.minX
+                if lhs.frame.minX == rhs.frame.minX {
+                    return lhs.frame.minY < rhs.frame.minY
+                }
+                return lhs.frame.minX < rhs.frame.minX
             }
-        guard let currentScreenIndex = screens.firstIndex(where: { screen in
-            axVisibleFrame(for: screen).intersects(currentFrame)
-        }) ?? screens.firstIndex(where: { screen in
-            axVisibleFrame(for: screen).contains(
-                CGPoint(x: currentFrame.midX, y: currentFrame.midY)
-            )
-        }) else {
+        let visibleFrames = screens.map { screen in
+            axVisibleFrame(for: screen, primaryScreenFrame: primaryScreenFrame)
+        }
+        guard let currentScreenIndex = Self.bestScreenIndex(for: currentFrame, in: visibleFrames) else {
             return
         }
 
-        let screen = screens[currentScreenIndex]
-        let visibleFrame = axVisibleFrame(for: screen)
+        let visibleFrame = visibleFrames[currentScreenIndex]
         let targetFrame: CGRect
         let cycleKey: CycleKey?
         let cycleFraction: CGFloat?
@@ -120,12 +120,12 @@ struct WindowManager {
             cycleFraction = nil
         case .nextDisplay:
             let targetIndex = (currentScreenIndex + 1) % screens.count
-            targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: axVisibleFrame(for: screens[targetIndex]))
+            targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
             cycleKey = nil
             cycleFraction = nil
         case .previousDisplay:
             let targetIndex = (currentScreenIndex - 1 + screens.count) % screens.count
-            targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: axVisibleFrame(for: screens[targetIndex]))
+            targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
             cycleKey = nil
             cycleFraction = nil
         case .rightHalf:
@@ -263,14 +263,40 @@ struct WindowManager {
         return (value as! AXValue)
     }
 
-    private func axVisibleFrame(for screen: NSScreen) -> CGRect {
-        let screenFrame = screen.frame
-        let visibleFrame = screen.visibleFrame
+    static func axFrame(from appKitFrame: CGRect, primaryScreenFrame: CGRect) -> CGRect {
         return CGRect(
-            x: visibleFrame.minX,
-            y: screenFrame.maxY - visibleFrame.maxY,
-            width: visibleFrame.width,
-            height: visibleFrame.height
+            x: appKitFrame.minX,
+            y: primaryScreenFrame.maxY - appKitFrame.maxY,
+            width: appKitFrame.width,
+            height: appKitFrame.height
+        )
+    }
+
+    static func axVisibleFrame(
+        screenFrame: CGRect,
+        visibleFrame: CGRect,
+        primaryScreenFrame: CGRect
+    ) -> CGRect {
+        axFrame(from: visibleFrame, primaryScreenFrame: primaryScreenFrame)
+    }
+
+    static func bestScreenIndex(for frame: CGRect, in visibleFrames: [CGRect]) -> Int? {
+        let intersections = visibleFrames.enumerated().map { index, visibleFrame in
+            (index: index, area: frame.intersection(visibleFrame).area)
+        }
+        if let best = intersections.max(by: { $0.area < $1.area }), best.area > 0 {
+            return best.index
+        }
+
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        return visibleFrames.firstIndex { $0.contains(center) }
+    }
+
+    private func axVisibleFrame(for screen: NSScreen, primaryScreenFrame: CGRect) -> CGRect {
+        Self.axVisibleFrame(
+            screenFrame: screen.frame,
+            visibleFrame: screen.visibleFrame,
+            primaryScreenFrame: primaryScreenFrame
         )
     }
 
@@ -285,7 +311,12 @@ struct WindowManager {
         let x = destination.minX + (destination.width - width) * xRatio
         let y = destination.minY + (destination.height - height) * yRatio
 
-        return CGRect(x: x, y: y, width: width, height: height)
+        return CGRect(
+            x: min(max(x, destination.minX), destination.maxX - width),
+            y: min(max(y, destination.minY), destination.maxY - height),
+            width: width,
+            height: height
+        )
     }
 
     private static func nextCycleFraction(current: CGFloat, key: CycleKey, isStillOnSameEdge: Bool) -> CGFloat {
@@ -319,5 +350,11 @@ struct WindowManager {
         case .bottom:
             return abs(frame.maxY - visibleFrame.maxY) <= tolerance || frame.midY >= visibleFrame.midY
         }
+    }
+}
+
+private extension CGRect {
+    var area: CGFloat {
+        max(0, width) * max(0, height)
     }
 }
