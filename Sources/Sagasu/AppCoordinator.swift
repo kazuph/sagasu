@@ -10,11 +10,14 @@ final class AppCoordinator: NSObject, ObservableObject {
     let searchViewModel: SearchViewModel
 
     private var launcherHotKeyMonitor: LauncherHotKeyMonitor?
+    private var windowHotKeyMonitor: WindowHotKeyMonitor?
     private var windowHotKeyMonitors: [HotKeyMonitor] = []
     private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
     private var statusItem: NSStatusItem?
     private var didPresentAccessibilityPermissionError = false
+    private var lastWindowCommand: WindowManager.Command?
+    private var lastWindowCommandAt = Date.distantPast
     private(set) var isQuitRequested = false
 
     override init() {
@@ -167,6 +170,14 @@ final class AppCoordinator: NSObject, ObservableObject {
     ]
 
     private func configureWindowManagementHotKeys() {
+        do {
+            windowHotKeyMonitor = try WindowHotKeyMonitor { [weak self] command in
+                Task { @MainActor in self?.performWindowManagement(command) }
+            }
+        } catch {
+            fputs("Sagasu window hotkey monitor failed: \(error.localizedDescription)\n", stderr)
+        }
+
         let modifiers = UInt32(controlKey | shiftKey | cmdKey)
         let bindings: [(UInt32, WindowManager.Command)] = [
             (UInt32(kVK_ANSI_J), .bottomHalf),
@@ -182,18 +193,28 @@ final class AppCoordinator: NSObject, ObservableObject {
         windowHotKeyMonitors = bindings.compactMap { keyCode, command in
             do {
                 return try HotKeyMonitor(keyCode: keyCode, modifiers: modifiers) { [weak self] in
-                    Task { @MainActor in
-                        do {
-                            try self?.windowManager.perform(command)
-                        } catch {
-                            self?.presentWindowManagement(error: error)
-                        }
-                    }
+                    Task { @MainActor in self?.performWindowManagement(command) }
                 }
             } catch {
                 fputs("Sagasu window hotkey registration failed for keyCode \(keyCode): \(error.localizedDescription)\n", stderr)
                 return nil
             }
+        }
+    }
+
+    private func performWindowManagement(_ command: WindowManager.Command) {
+        let now = Date()
+        if lastWindowCommand == command,
+           now.timeIntervalSince(lastWindowCommandAt) < 0.08 {
+            return
+        }
+
+        lastWindowCommand = command
+        lastWindowCommandAt = now
+        do {
+            try windowManager.perform(command)
+        } catch {
+            presentWindowManagement(error: error)
         }
     }
 

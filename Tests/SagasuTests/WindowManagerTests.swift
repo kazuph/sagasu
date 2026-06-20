@@ -1,4 +1,5 @@
 import Foundation
+import Carbon
 import Testing
 @testable import Sagasu
 
@@ -93,4 +94,14 @@ func bestScreenIndexUsesLargestIntersection() {
     let mostlySecondScreen = CGRect(x: 880, y: 100, width: 800, height: 500)
 
     #expect(WindowManager.bestScreenIndex(for: mostlySecondScreen, in: visibleFrames) == 1)
+}
+
+@MainActor
+@Test
+func windowHotKeyMonitorMapsHLIWithoutMixingCommands() {
+    let flags: CGEventFlags = [.maskCommand, .maskControl, .maskShift]
+
+    #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_H), flags: flags) == .leftHalf)
+    #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_L), flags: flags) == .rightHalf)
+    #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_I), flags: flags) == .centerThird)
 }

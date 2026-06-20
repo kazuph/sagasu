@@ -11,6 +11,13 @@ struct WindowManager {
         case bottom
     }
 
+    private enum FrameAnchor {
+        case left
+        case right
+        case top
+        case bottom
+    }
+
     private struct CycleKey: Hashable {
         let processIdentifier: pid_t
         let edge: CycleEdge
@@ -31,8 +38,9 @@ struct WindowManager {
     private static let cycleTolerance: CGFloat = 0.035
     private static let cycleStateLifetime: TimeInterval = 8
     private static var cycleStates: [CycleKey: CycleState] = [:]
+    private static var reapplyGeneration: UInt64 = 0
 
-    enum Command {
+    enum Command: Equatable {
         case bottomHalf
         case centerThird
         case leftHalf
@@ -71,6 +79,7 @@ struct WindowManager {
 
         let visibleFrame = visibleFrames[currentScreenIndex]
         let targetFrame: CGRect
+        let targetAnchor: FrameAnchor?
         let cycleKey: CycleKey?
         let cycleFraction: CGFloat?
 
@@ -88,6 +97,7 @@ struct WindowManager {
                 width: visibleFrame.width,
                 height: visibleFrame.height * fraction
             )
+            targetAnchor = .bottom
             cycleKey = key
             cycleFraction = fraction
         case .centerThird:
@@ -97,6 +107,7 @@ struct WindowManager {
                 width: visibleFrame.width / 3,
                 height: visibleFrame.height
             )
+            targetAnchor = nil
             cycleKey = nil
             cycleFraction = nil
         case .leftHalf:
@@ -112,20 +123,24 @@ struct WindowManager {
                 width: visibleFrame.width * fraction,
                 height: visibleFrame.height
             )
+            targetAnchor = .left
             cycleKey = key
             cycleFraction = fraction
         case .maximize:
             targetFrame = visibleFrame
+            targetAnchor = nil
             cycleKey = nil
             cycleFraction = nil
         case .nextDisplay:
             let targetIndex = (currentScreenIndex + 1) % screens.count
             targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
+            targetAnchor = nil
             cycleKey = nil
             cycleFraction = nil
         case .previousDisplay:
             let targetIndex = (currentScreenIndex - 1 + screens.count) % screens.count
             targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
+            targetAnchor = nil
             cycleKey = nil
             cycleFraction = nil
         case .rightHalf:
@@ -142,6 +157,7 @@ struct WindowManager {
                 width: width,
                 height: visibleFrame.height
             )
+            targetAnchor = .right
             cycleKey = key
             cycleFraction = fraction
         case .topHalf:
@@ -157,14 +173,17 @@ struct WindowManager {
                 width: visibleFrame.width,
                 height: visibleFrame.height * fraction
             )
+            targetAnchor = .top
             cycleKey = key
             cycleFraction = fraction
         }
 
-        try set(frame: targetFrame.integral, for: window)
+        let integralTargetFrame = targetFrame.integral
+        try set(frame: integralTargetFrame, for: window)
         if let cycleKey, let cycleFraction {
             Self.recordCycle(fraction: cycleFraction, for: cycleKey)
         }
+        scheduleReapply(frame: integralTargetFrame, anchor: targetAnchor, for: window)
     }
 
     static func requestAccessibilityPermissionIfNeeded(prompt: Bool = true) -> Bool {
@@ -233,10 +252,42 @@ struct WindowManager {
             return
         }
 
+        _ = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        _ = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
         let sizeStatus = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
         let positionStatus = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
         if positionStatus != .success || sizeStatus != .success {
             throw LauncherError.accessibilityPermissionRequired
+        }
+    }
+
+    private func scheduleReapply(frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) {
+        Self.reapplyGeneration += 1
+        let generation = Self.reapplyGeneration
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard generation == Self.reapplyGeneration else { return }
+            try? set(frame: frame, for: window)
+            guard let anchor, var actualFrame = self.frame(of: window) else { return }
+            let widthDelta = actualFrame.width - frame.width
+            if widthDelta > 320 {
+                actualFrame.size.width = frame.width
+            }
+            let heightDelta = actualFrame.height - frame.height
+            if heightDelta > 240 {
+                actualFrame.size.height = frame.height
+            }
+            switch anchor {
+            case .left:
+                actualFrame.origin.x = frame.minX
+            case .right:
+                actualFrame.origin.x = frame.maxX - actualFrame.width
+            case .top:
+                actualFrame.origin.y = frame.minY
+            case .bottom:
+                actualFrame.origin.y = frame.maxY - actualFrame.height
+            }
+            try? set(frame: actualFrame.integral, for: window)
         }
     }
 
