@@ -18,6 +18,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private var didPresentAccessibilityPermissionError = false
     private var lastWindowCommand: WindowManager.Command?
     private var lastWindowCommandAt = Date.distantPast
+    private var applicationBeforeLauncher: NSRunningApplication?
     private(set) var isQuitRequested = false
 
     override init() {
@@ -104,12 +105,14 @@ final class AppCoordinator: NSObject, ObservableObject {
         if launcherPanelController.isVisible {
             hideLauncher()
         } else {
+            rememberApplicationBeforeLauncher()
             searchViewModel.prepareForPresentation(initialQuery: initialQuery)
             launcherPanelController.show()
         }
     }
 
     private func showLauncher(initialQuery: String) {
+        rememberApplicationBeforeLauncher()
         searchViewModel.prepareForPresentation(initialQuery: initialQuery)
         launcherPanelController?.show()
     }
@@ -244,6 +247,10 @@ final class AppCoordinator: NSObject, ObservableObject {
                 try NotesSearchService.openNote(withID: noteID)
             case .restoreClipboard(let entryID):
                 try clipboardStore.restore(entryID: entryID)
+                try? searchEngine.markUsed(action: action)
+                hideLauncher()
+                pasteRestoredClipboardSoon()
+                return
             case .saveClipboardImage:
                 Task { @MainActor [weak self] in
                     self?.saveClipboardImage()
@@ -262,6 +269,37 @@ final class AppCoordinator: NSObject, ObservableObject {
         } catch {
             searchViewModel.present(error: error)
         }
+    }
+
+    private func rememberApplicationBeforeLauncher() {
+        guard let application = NSWorkspace.shared.frontmostApplication,
+              application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+            return
+        }
+        applicationBeforeLauncher = application
+    }
+
+    private func pasteRestoredClipboardSoon() {
+        let targetApplication = applicationBeforeLauncher
+        Task { @MainActor in
+            if let targetApplication, targetApplication.isTerminated == false {
+                targetApplication.activate(options: [.activateAllWindows])
+            }
+
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            Self.sendPasteShortcut()
+        }
+    }
+
+    static func sendPasteShortcut() {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true)
+        keyDown?.flags = .maskCommand
+        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
+        keyUp?.flags = .maskCommand
+
+        keyDown?.post(tap: .cghidEventTap)
+        keyUp?.post(tap: .cghidEventTap)
     }
 
     private func saveClipboardImage() {

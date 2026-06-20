@@ -26,7 +26,7 @@ If the system clipboard contains an image, the default application search includ
 
 ## History behavior
 
-- Clipboard entries move upward after they are restored.
+- Clipboard entries move upward after they are restored, and Sagasu sends `Command-V` after selection so the restored entry is pasted into the previously active app.
 - Applications move upward after they are launched from Sagasu.
 - Opened file and folder URLs are recorded for future ranking.
 - Clipboard entries expire after 3 months by default. Reusing an entry extends it to 6 months from last use. Pinned entries do not expire.
