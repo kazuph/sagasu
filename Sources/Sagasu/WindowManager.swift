@@ -205,6 +205,10 @@ struct WindowManager {
     }
 
     static func nextCycleFraction(current: CGFloat, previous: CGFloat?, isStillOnSameEdge: Bool) -> CGFloat {
+        if current >= 1.0 - cycleTolerance {
+            return nextCycleFraction(current: current)
+        }
+
         if isStillOnSameEdge,
            let previous,
            let previousIndex = cycle.firstIndex(where: { abs($0 - previous) <= cycleTolerance }) {
@@ -265,29 +269,31 @@ struct WindowManager {
         Self.reapplyGeneration += 1
         let generation = Self.reapplyGeneration
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 120_000_000)
-            guard generation == Self.reapplyGeneration else { return }
-            try? set(frame: frame, for: window)
-            guard let anchor, var actualFrame = self.frame(of: window) else { return }
-            let widthDelta = actualFrame.width - frame.width
-            if widthDelta > 320 {
-                actualFrame.size.width = frame.width
+            for delay in [120_000_000, 180_000_000, 260_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard generation == Self.reapplyGeneration else { return }
+                try? set(frame: frame, for: window)
+                guard let anchor, var actualFrame = self.frame(of: window) else { continue }
+                let widthDelta = actualFrame.width - frame.width
+                if abs(widthDelta) > 200 {
+                    actualFrame.size.width = frame.width
+                }
+                let heightDelta = actualFrame.height - frame.height
+                if abs(heightDelta) > 240 {
+                    actualFrame.size.height = frame.height
+                }
+                switch anchor {
+                case .left:
+                    actualFrame.origin.x = frame.minX
+                case .right:
+                    actualFrame.origin.x = frame.maxX - actualFrame.width
+                case .top:
+                    actualFrame.origin.y = frame.minY
+                case .bottom:
+                    actualFrame.origin.y = frame.maxY - actualFrame.height
+                }
+                try? set(frame: actualFrame.integral, for: window)
             }
-            let heightDelta = actualFrame.height - frame.height
-            if heightDelta > 240 {
-                actualFrame.size.height = frame.height
-            }
-            switch anchor {
-            case .left:
-                actualFrame.origin.x = frame.minX
-            case .right:
-                actualFrame.origin.x = frame.maxX - actualFrame.width
-            case .top:
-                actualFrame.origin.y = frame.minY
-            case .bottom:
-                actualFrame.origin.y = frame.maxY - actualFrame.height
-            }
-            try? set(frame: actualFrame.integral, for: window)
         }
     }
 

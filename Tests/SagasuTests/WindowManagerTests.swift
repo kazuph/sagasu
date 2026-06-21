@@ -47,6 +47,18 @@ func windowCycleUsesPreviousAppliedFractionWhenAppAdjustsFrame() {
 
 @MainActor
 @Test
+func windowCycleIgnoresPreviousFractionWhenCurrentWindowIsFullWidth() {
+    #expect(
+        WindowManager.nextCycleFraction(
+            current: 1.0,
+            previous: 2.0 / 3.0,
+            isStillOnSameEdge: true
+        ) == 1.0 / 2.0
+    )
+}
+
+@MainActor
+@Test
 func windowCycleIgnoresPreviousFractionAfterManualMove() {
     #expect(
         WindowManager.nextCycleFraction(
