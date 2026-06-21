@@ -37,6 +37,7 @@ struct WindowManager {
     ]
     private static let cycleTolerance: CGFloat = 0.035
     private static let cycleStateLifetime: TimeInterval = 8
+    private static let secondaryDisplayWindowTopInset: CGFloat = 31
     private static var cycleStates: [CycleKey: CycleState] = [:]
 
     enum Command: Equatable {
@@ -70,7 +71,7 @@ struct WindowManager {
                 return lhs.frame.minX < rhs.frame.minX
             }
         let visibleFrames = screens.map { screen in
-            axVisibleFrame(for: screen, primaryScreenFrame: primaryScreenFrame)
+            windowUsableFrame(for: screen, primaryScreenFrame: primaryScreenFrame)
         }
         guard let currentScreenIndex = Self.bestScreenIndex(for: currentFrame, in: visibleFrames) else {
             return
@@ -178,7 +179,7 @@ struct WindowManager {
         }
 
         let integralTargetFrame = targetFrame.integral
-        try set(frame: integralTargetFrame, anchor: targetAnchor, for: window)
+        try set(frame: integralTargetFrame, anchor: targetAnchor, for: window, application: application)
         if let cycleKey, let cycleFraction {
             Self.recordCycle(fraction: cycleFraction, for: cycleKey)
         }
@@ -221,6 +222,11 @@ struct WindowManager {
             return
         }
         NSWorkspace.shared.open(url)
+    }
+
+    static func appleScriptBoundsList(for frame: CGRect) -> String {
+        let frame = frame.integral
+        return "{\(Int(frame.minX)), \(Int(frame.minY)), \(Int(frame.maxX)), \(Int(frame.maxY))}"
     }
 
     private func focusedWindow(for application: NSRunningApplication) -> AXUIElement? {
@@ -278,6 +284,35 @@ struct WindowManager {
         }
 
         try alignActualFrame(to: frame, anchor: anchor, for: window)
+    }
+
+    private func set(
+        frame: CGRect,
+        anchor: FrameAnchor?,
+        for window: AXUIElement,
+        application: NSRunningApplication
+    ) throws {
+        if application.bundleIdentifier == "com.google.Chrome" {
+            try setChromeBounds(frame)
+            return
+        }
+
+        try set(frame: frame, anchor: anchor, for: window)
+    }
+
+    private func setChromeBounds(_ frame: CGRect) throws {
+        let source = """
+        tell application id "com.google.Chrome"
+            if (count of windows) > 0 then
+                set bounds of front window to \(Self.appleScriptBoundsList(for: frame))
+            end if
+        end tell
+        """
+        var error: NSDictionary?
+        NSAppleScript(source: source)?.executeAndReturnError(&error)
+        if error != nil {
+            throw LauncherError.accessibilityPermissionRequired
+        }
     }
 
     private func setPosition(_ position: CGPoint, for window: AXUIElement) throws {
@@ -392,6 +427,31 @@ struct WindowManager {
             visibleFrame: screen.visibleFrame,
             primaryScreenFrame: primaryScreenFrame
         )
+    }
+
+    private func windowUsableFrame(for screen: NSScreen, primaryScreenFrame: CGRect) -> CGRect {
+        Self.windowUsableFrame(
+            screenFrame: screen.frame,
+            visibleFrame: screen.visibleFrame,
+            primaryScreenFrame: primaryScreenFrame
+        )
+    }
+
+    static func windowUsableFrame(
+        screenFrame: CGRect,
+        visibleFrame: CGRect,
+        primaryScreenFrame: CGRect
+    ) -> CGRect {
+        var frame = axVisibleFrame(
+            screenFrame: screenFrame,
+            visibleFrame: visibleFrame,
+            primaryScreenFrame: primaryScreenFrame
+        )
+        if visibleFrame == screenFrame {
+            frame.origin.y += secondaryDisplayWindowTopInset
+            frame.size.height = max(120, frame.height - secondaryDisplayWindowTopInset)
+        }
+        return frame
     }
 
     static func translatedFrame(_ frame: CGRect, from source: CGRect, to destination: CGRect) -> CGRect {

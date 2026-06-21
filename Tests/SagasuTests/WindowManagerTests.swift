@@ -71,6 +71,14 @@ func windowCycleIgnoresPreviousFractionAfterManualMove() {
 
 @MainActor
 @Test
+func appleScriptBoundsListUsesLeftTopRightBottom() {
+    let frame = CGRect(x: 2430, y: -1409, width: 960, height: 1049)
+
+    #expect(WindowManager.appleScriptBoundsList(for: frame) == "{2430, -1409, 3390, -360}")
+}
+
+@MainActor
+@Test
 func axVisibleFrameUsesPrimaryScreenTopForStackedDisplays() {
     let primaryFrame = CGRect(x: 0, y: 0, width: 1470, height: 956)
 
@@ -98,6 +106,36 @@ func axVisibleFrameUsesPrimaryScreenTopForStackedDisplays() {
 
 @MainActor
 @Test
+func windowUsableFrameAvoidsUnsafeSecondaryDisplayTopEdge() {
+    let primaryFrame = CGRect(x: 0, y: 0, width: 1470, height: 956)
+    let secondaryFrame = CGRect(x: 1470, y: 1316, width: 1920, height: 1080)
+
+    let usable = WindowManager.windowUsableFrame(
+        screenFrame: secondaryFrame,
+        visibleFrame: secondaryFrame,
+        primaryScreenFrame: primaryFrame
+    )
+
+    #expect(usable == CGRect(x: 1470, y: -1409, width: 1920, height: 1049))
+}
+
+@MainActor
+@Test
+func windowUsableFrameKeepsAlreadyInsetPrimaryDisplayVisibleFrame() {
+    let primaryFrame = CGRect(x: 0, y: 0, width: 1470, height: 956)
+    let primaryVisible = CGRect(x: 0, y: 0, width: 1470, height: 922)
+
+    let usable = WindowManager.windowUsableFrame(
+        screenFrame: primaryFrame,
+        visibleFrame: primaryVisible,
+        primaryScreenFrame: primaryFrame
+    )
+
+    #expect(usable == CGRect(x: 0, y: 34, width: 1470, height: 922))
+}
+
+@MainActor
+@Test
 func bestScreenIndexUsesLargestIntersection() {
     let visibleFrames = [
         CGRect(x: 0, y: 0, width: 1000, height: 800),
@@ -111,9 +149,9 @@ func bestScreenIndexUsesLargestIntersection() {
 @MainActor
 @Test
 func translatedFramePreservesRightHalfOnDestinationDisplay() {
-    let source = CGRect(x: 1470, y: -1440, width: 1920, height: 1080)
+    let source = CGRect(x: 1470, y: -1409, width: 1920, height: 1049)
     let destination = CGRect(x: 0, y: 34, width: 1470, height: 922)
-    let rightHalf = CGRect(x: 2430, y: -1440, width: 960, height: 1080)
+    let rightHalf = CGRect(x: 2430, y: -1409, width: 960, height: 1049)
 
     let translated = WindowManager.translatedFrame(rightHalf, from: source, to: destination)
 
