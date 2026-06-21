@@ -23,7 +23,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Sagasu uses Apple Events to search and open notes in Notes.app.</string>
+	<string>Sagasu uses Apple Events to search and open notes in Notes.app and to set Chrome window bounds when Accessibility window resizing is unstable.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

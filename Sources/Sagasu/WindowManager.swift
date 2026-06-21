@@ -293,14 +293,26 @@ struct WindowManager {
         application: NSRunningApplication
     ) throws {
         if application.bundleIdentifier == "com.google.Chrome" {
-            try setChromeBounds(frame)
-            return
+            focus(window, for: application)
+            let beforeFrame = self.frame(of: window)
+            if setChromeBounds(frame),
+               let afterFrame = self.frame(of: window),
+               Self.didApplyChromeBounds(afterFrame: afterFrame, beforeFrame: beforeFrame, targetFrame: frame) {
+                return
+            }
         }
 
         try set(frame: frame, anchor: anchor, for: window)
     }
 
-    private func setChromeBounds(_ frame: CGRect) throws {
+    private func focus(_ window: AXUIElement, for application: NSRunningApplication) {
+        application.activate(options: [])
+        let appElement = AXUIElementCreateApplication(application.processIdentifier)
+        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        AXUIElementSetAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, window)
+    }
+
+    private func setChromeBounds(_ frame: CGRect) -> Bool {
         let source = """
         tell application id "com.google.Chrome"
             if (count of windows) > 0 then
@@ -310,9 +322,40 @@ struct WindowManager {
         """
         var error: NSDictionary?
         NSAppleScript(source: source)?.executeAndReturnError(&error)
-        if error != nil {
-            throw LauncherError.accessibilityPermissionRequired
+        if error == nil {
+            return true
         }
+        return runOSAScript(source)
+    }
+
+    private func runOSAScript(_ source: String) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", source]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
+    private static func didApplyChromeBounds(afterFrame: CGRect, beforeFrame: CGRect?, targetFrame: CGRect) -> Bool {
+        if framesMatch(afterFrame, targetFrame, tolerance: 6) {
+            return true
+        }
+        guard let beforeFrame else { return false }
+        return framesMatch(afterFrame, beforeFrame, tolerance: 1) == false
+    }
+
+    private static func framesMatch(_ lhs: CGRect, _ rhs: CGRect, tolerance: CGFloat) -> Bool {
+        abs(lhs.minX - rhs.minX) <= tolerance &&
+            abs(lhs.minY - rhs.minY) <= tolerance &&
+            abs(lhs.width - rhs.width) <= tolerance &&
+            abs(lhs.height - rhs.height) <= tolerance
     }
 
     private func setPosition(_ position: CGPoint, for window: AXUIElement) throws {
