@@ -110,6 +110,42 @@ func bestScreenIndexUsesLargestIntersection() {
 
 @MainActor
 @Test
+func translatedFramePreservesRightHalfOnDestinationDisplay() {
+    let source = CGRect(x: 1470, y: -1440, width: 1920, height: 1080)
+    let destination = CGRect(x: 0, y: 34, width: 1470, height: 922)
+    let rightHalf = CGRect(x: 2430, y: -1440, width: 960, height: 1080)
+
+    let translated = WindowManager.translatedFrame(rightHalf, from: source, to: destination)
+
+    #expect(translated == CGRect(x: 735, y: 34, width: 735, height: 922))
+}
+
+@MainActor
+@Test
+func translatedFramePreservesMaximizedWindowOnDestinationDisplay() {
+    let source = CGRect(x: 1470, y: -1440, width: 1920, height: 1080)
+    let destination = CGRect(x: -1090, y: -2520, width: 2560, height: 1080)
+    let maximized = source
+
+    let translated = WindowManager.translatedFrame(maximized, from: source, to: destination)
+
+    #expect(translated == destination)
+}
+
+@MainActor
+@Test
+func translatedFramePreservesBottomHalfOnDestinationDisplay() {
+    let source = CGRect(x: 1470, y: -1440, width: 1920, height: 1080)
+    let destination = CGRect(x: -1090, y: -1440, width: 2560, height: 1440)
+    let bottomHalf = CGRect(x: 1470, y: -900, width: 1920, height: 540)
+
+    let translated = WindowManager.translatedFrame(bottomHalf, from: source, to: destination)
+
+    #expect(translated == CGRect(x: -1090, y: -720, width: 2560, height: 720))
+}
+
+@MainActor
+@Test
 func windowHotKeyMonitorMapsHLIWithoutMixingCommands() {
     let flags: CGEventFlags = [.maskCommand, .maskControl, .maskShift]
 

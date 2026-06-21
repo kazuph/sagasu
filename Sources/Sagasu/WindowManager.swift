@@ -38,7 +38,6 @@ struct WindowManager {
     private static let cycleTolerance: CGFloat = 0.035
     private static let cycleStateLifetime: TimeInterval = 8
     private static var cycleStates: [CycleKey: CycleState] = [:]
-    private static var reapplyGeneration: UInt64 = 0
 
     enum Command: Equatable {
         case bottomHalf
@@ -133,13 +132,13 @@ struct WindowManager {
             cycleFraction = nil
         case .nextDisplay:
             let targetIndex = (currentScreenIndex + 1) % screens.count
-            targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
+            targetFrame = Self.translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
             targetAnchor = nil
             cycleKey = nil
             cycleFraction = nil
         case .previousDisplay:
             let targetIndex = (currentScreenIndex - 1 + screens.count) % screens.count
-            targetFrame = translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
+            targetFrame = Self.translatedFrame(currentFrame, from: visibleFrame, to: visibleFrames[targetIndex])
             targetAnchor = nil
             cycleKey = nil
             cycleFraction = nil
@@ -179,11 +178,10 @@ struct WindowManager {
         }
 
         let integralTargetFrame = targetFrame.integral
-        try set(frame: integralTargetFrame, for: window)
+        try set(frame: integralTargetFrame, anchor: targetAnchor, for: window)
         if let cycleKey, let cycleFraction {
             Self.recordCycle(fraction: cycleFraction, for: cycleKey)
         }
-        scheduleReapply(frame: integralTargetFrame, anchor: targetAnchor, for: window)
     }
 
     static func requestAccessibilityPermissionIfNeeded(prompt: Bool = true) -> Bool {
@@ -249,51 +247,90 @@ struct WindowManager {
     }
 
     private func set(frame: CGRect, for window: AXUIElement) throws {
-        var position = frame.origin
-        var size = frame.size
-        guard let positionValue = AXValueCreate(.cgPoint, &position),
-              let sizeValue = AXValueCreate(.cgSize, &size) else {
+        try setSize(frame.size, for: window)
+        _ = self.frame(of: window)
+        try setPosition(frame.origin, for: window)
+        _ = self.frame(of: window)
+        try setSize(frame.size, for: window)
+        _ = self.frame(of: window)
+        try setPosition(frame.origin, for: window)
+        _ = self.frame(of: window)
+    }
+
+    private func set(frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) throws {
+        guard let anchor else {
+            try set(frame: frame, for: window)
             return
         }
 
-        _ = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        _ = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
-        let sizeStatus = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        let positionStatus = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
-        if positionStatus != .success || sizeStatus != .success {
+        let currentFrame = self.frame(of: window)
+        switch anchor {
+        case .right where (currentFrame?.width ?? frame.width) < frame.width:
+            try setPosition(CGPoint(x: frame.maxX - (currentFrame?.width ?? frame.width), y: frame.minY), for: window)
+            _ = self.frame(of: window)
+            try set(frame: frame, for: window)
+        case .bottom where (currentFrame?.height ?? frame.height) < frame.height:
+            try setPosition(CGPoint(x: frame.minX, y: frame.maxY - (currentFrame?.height ?? frame.height)), for: window)
+            _ = self.frame(of: window)
+            try set(frame: frame, for: window)
+        default:
+            try set(frame: frame, for: window)
+        }
+
+        try alignActualFrame(to: frame, anchor: anchor, for: window)
+    }
+
+    private func setPosition(_ position: CGPoint, for window: AXUIElement) throws {
+        var position = position
+        guard let value = AXValueCreate(.cgPoint, &position) else { return }
+        let status = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
+        if status != .success {
             throw LauncherError.accessibilityPermissionRequired
         }
     }
 
-    private func scheduleReapply(frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) {
-        Self.reapplyGeneration += 1
-        let generation = Self.reapplyGeneration
-        Task { @MainActor in
-            for delay in [120_000_000, 180_000_000, 260_000_000] as [UInt64] {
-                try? await Task.sleep(nanoseconds: delay)
-                guard generation == Self.reapplyGeneration else { return }
-                try? set(frame: frame, for: window)
-                guard let anchor, var actualFrame = self.frame(of: window) else { continue }
-                let widthDelta = actualFrame.width - frame.width
-                if abs(widthDelta) > 200 {
-                    actualFrame.size.width = frame.width
-                }
-                let heightDelta = actualFrame.height - frame.height
-                if abs(heightDelta) > 240 {
-                    actualFrame.size.height = frame.height
-                }
-                switch anchor {
-                case .left:
-                    actualFrame.origin.x = frame.minX
-                case .right:
-                    actualFrame.origin.x = frame.maxX - actualFrame.width
-                case .top:
-                    actualFrame.origin.y = frame.minY
-                case .bottom:
-                    actualFrame.origin.y = frame.maxY - actualFrame.height
-                }
-                try? set(frame: actualFrame.integral, for: window)
-            }
+    private func setSize(_ size: CGSize, for window: AXUIElement) throws {
+        var size = size
+        guard let value = AXValueCreate(.cgSize, &size) else { return }
+        let status = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
+        if status != .success {
+            throw LauncherError.accessibilityPermissionRequired
+        }
+    }
+
+    private func alignActualFrame(to targetFrame: CGRect, anchor: FrameAnchor, for window: AXUIElement) throws {
+        guard var actualFrame = frame(of: window) else { return }
+
+        let widthDelta = actualFrame.width - targetFrame.width
+        if abs(widthDelta) > 200 {
+            actualFrame.size.width = targetFrame.width
+        }
+
+        let heightDelta = actualFrame.height - targetFrame.height
+        if abs(heightDelta) > 240 {
+            actualFrame.size.height = targetFrame.height
+        }
+
+        switch anchor {
+        case .left:
+            actualFrame.origin.x = targetFrame.minX
+        case .right:
+            actualFrame.origin.x = targetFrame.maxX - actualFrame.width
+        case .top:
+            actualFrame.origin.y = targetFrame.minY
+        case .bottom:
+            actualFrame.origin.y = targetFrame.maxY - actualFrame.height
+        }
+
+        let integralFrame = actualFrame.integral
+        switch anchor {
+        case .right, .bottom:
+            try setPosition(integralFrame.origin, for: window)
+            _ = self.frame(of: window)
+            try setSize(integralFrame.size, for: window)
+            _ = self.frame(of: window)
+        case .left, .top:
+            try set(frame: integralFrame, for: window)
         }
     }
 
@@ -357,7 +394,7 @@ struct WindowManager {
         )
     }
 
-    private func translatedFrame(_ frame: CGRect, from source: CGRect, to destination: CGRect) -> CGRect {
+    static func translatedFrame(_ frame: CGRect, from source: CGRect, to destination: CGRect) -> CGRect {
         let widthRatio = frame.width / max(source.width, 1)
         let heightRatio = frame.height / max(source.height, 1)
         let xRatio = (frame.minX - source.minX) / max(source.width, 1)
@@ -365,8 +402,8 @@ struct WindowManager {
 
         let width = min(destination.width, max(120, destination.width * widthRatio))
         let height = min(destination.height, max(120, destination.height * heightRatio))
-        let x = destination.minX + (destination.width - width) * xRatio
-        let y = destination.minY + (destination.height - height) * yRatio
+        let x = destination.minX + destination.width * xRatio
+        let y = destination.minY + destination.height * yRatio
 
         return CGRect(
             x: min(max(x, destination.minX), destination.maxX - width),
