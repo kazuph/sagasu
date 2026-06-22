@@ -19,10 +19,16 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 - `n ` searches Apple Notes.
 - `v ` searches clipboard text and image history.
 - `vi ` searches clipboard images only.
+- `g ` searches repositories owned by you and your GitHub organizations when `gh` is available. Local `ghq list` matches are shown first when `ghq` is installed.
+- `gh ` searches repositories across GitHub when `gh` is available.
+- `gi ` searches issues in repositories owned by you and your GitHub organizations when `gh` is available.
+- `gp ` searches pull requests in repositories owned by you and your GitHub organizations when `gh` is available.
+- `ghq ` searches only local `ghq list` entries.
 
 When Sagasu opens with an empty query, recently modified folders are mixed near the top of the default application list. This makes recent work folders available immediately without switching modes. If you type `f ` first, Sagasu switches to folder/file mode and only folder/file results are shown.
 Finder is indexed from `/System/Library/CoreServices`, so typing `finder` opens Finder from the application list.
 If the system clipboard contains an image, the default application search includes `Image: Save Clipboard Image` and `Image: Extract Text from Clipboard Image`. They are searchable with English terms such as `i`, `image`, `ocr`, `text`, `extract`, `save`, or `downloads`. Saving writes a PNG to `~/Downloads`; extracting Japanese and English text copies recognized text back to the system clipboard and adds it to the latest clipboard history.
+GitHub search results open in Chrome. Sagasu enables these modes automatically when the `gh` command is installed; `ghq` results are enabled automatically when the `ghq` command is installed.
 
 ## History behavior
 

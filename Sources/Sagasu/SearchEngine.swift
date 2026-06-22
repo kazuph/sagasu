@@ -8,6 +8,7 @@ struct SearchEngine {
     private let clipboardImageTextService: ClipboardImageTextService
     private let herdrSearchService: HerdrSearchService?
     private let webRouteSearchService: WebRouteSearchService
+    private let gitHubSearchService: GitHubSearchService
     private let usageHistoryStore: UsageHistoryStore
 
     init(
@@ -15,6 +16,7 @@ struct SearchEngine {
         fileSearchService: FileSearchService = FileSearchService(),
         notesSearchService: NotesSearchService = NotesSearchService(),
         webRouteSearchService: WebRouteSearchService = WebRouteSearchService(),
+        gitHubSearchService: GitHubSearchService = GitHubSearchService(),
         clipboardStore: ClipboardHistoryStore,
         clipboardImageTextService: ClipboardImageTextService = ClipboardImageTextService(),
         herdrSearchService: HerdrSearchService? = try? HerdrSearchService(),
@@ -27,6 +29,7 @@ struct SearchEngine {
         self.clipboardImageTextService = clipboardImageTextService
         self.herdrSearchService = herdrSearchService
         self.webRouteSearchService = webRouteSearchService
+        self.gitHubSearchService = gitHubSearchService
         self.usageHistoryStore = usageHistoryStore
     }
 
@@ -86,6 +89,39 @@ struct SearchEngine {
             return await MainActor.run {
                 clipboardStore.search(query: query, imageOnly: parsedQuery.clipboardImageOnly)
             }
+        case .githubOwnedRepositories:
+            let gitHubSearchService = self.gitHubSearchService
+            let query = parsedQuery.query
+            return try await Task.detached(priority: .userInitiated) {
+                return try gitHubSearchService.searchOwnedRepositories(query: query)
+            }.value
+        case .githubGlobalRepositories:
+            let gitHubSearchService = self.gitHubSearchService
+            let query = parsedQuery.query
+            return try await Task.detached(priority: .userInitiated) {
+                guard gitHubSearchService.isGitHubCLIAvailable() else { return [] }
+                return try gitHubSearchService.searchGlobalRepositories(query: query)
+            }.value
+        case .githubIssues:
+            let gitHubSearchService = self.gitHubSearchService
+            let query = parsedQuery.query
+            return try await Task.detached(priority: .userInitiated) {
+                guard gitHubSearchService.isGitHubCLIAvailable() else { return [] }
+                return try gitHubSearchService.searchIssues(query: query)
+            }.value
+        case .githubPullRequests:
+            let gitHubSearchService = self.gitHubSearchService
+            let query = parsedQuery.query
+            return try await Task.detached(priority: .userInitiated) {
+                guard gitHubSearchService.isGitHubCLIAvailable() else { return [] }
+                return try gitHubSearchService.searchPullRequests(query: query)
+            }.value
+        case .ghqRepositories:
+            let gitHubSearchService = self.gitHubSearchService
+            let query = parsedQuery.query
+            return await Task.detached(priority: .userInitiated) {
+                gitHubSearchService.searchGHQRepositories(query: query)
+            }.value
         }
     }
 

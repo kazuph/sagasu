@@ -394,6 +394,8 @@ private extension SearchMode {
             return .orange
         case .clipboard:
             return .green
+        case .githubOwnedRepositories, .githubGlobalRepositories, .githubIssues, .githubPullRequests, .ghqRepositories:
+            return .purple
         }
     }
 
@@ -411,6 +413,14 @@ private extension SearchMode {
             return "note.text.badge.plus"
         case .clipboard:
             return "doc.on.clipboard"
+        case .githubOwnedRepositories, .githubGlobalRepositories:
+            return "chevron.left.forwardslash.chevron.right"
+        case .githubIssues:
+            return "smallcircle.filled.circle"
+        case .githubPullRequests:
+            return "arrow.triangle.pull"
+        case .ghqRepositories:
+            return "externaldrive"
         }
     }
 
@@ -428,6 +438,16 @@ private extension SearchMode {
             return query.isEmpty ? "Type after `n ` to search Notes" : "No notes matched"
         case .clipboard:
             return "Clipboard history is empty"
+        case .githubOwnedRepositories:
+            return query.isEmpty ? "Your ghq and GitHub repositories" : "No owned repositories matched"
+        case .githubGlobalRepositories:
+            return query.isEmpty ? "Type after `gh ` to search GitHub" : "No GitHub repositories matched"
+        case .githubIssues:
+            return query.isEmpty ? "Type after `gi ` to search issues" : "No GitHub issues matched"
+        case .githubPullRequests:
+            return query.isEmpty ? "Type after `gp ` to search pull requests" : "No GitHub pull requests matched"
+        case .ghqRepositories:
+            return query.isEmpty ? "ghq repositories" : "No ghq repositories matched"
         }
     }
 
@@ -451,6 +471,16 @@ private extension SearchMode {
                 : "The first Notes search may ask macOS for automation permission."
         case .clipboard:
             return "Copy text or images anywhere on macOS, then search them later with `v `. Press ⌘P on a selected entry to toggle pin."
+        case .githubOwnedRepositories:
+            return "`g ` searches ghq first, then repositories owned by you and your organizations when gh is available."
+        case .githubGlobalRepositories:
+            return "`gh ` searches repositories across GitHub when gh is available."
+        case .githubIssues:
+            return "`gi ` searches issues in repositories owned by you and your organizations."
+        case .githubPullRequests:
+            return "`gp ` searches pull requests in repositories owned by you and your organizations."
+        case .ghqRepositories:
+            return "`ghq ` searches only local ghq repository entries."
         }
     }
 }

@@ -7,6 +7,11 @@ enum SearchMode: String, CaseIterable {
     case terminals
     case notes
     case clipboard
+    case githubOwnedRepositories
+    case githubGlobalRepositories
+    case githubIssues
+    case githubPullRequests
+    case ghqRepositories
 
     var displayName: String {
         switch self {
@@ -22,6 +27,16 @@ enum SearchMode: String, CaseIterable {
             return "Notes"
         case .clipboard:
             return "Clipboard"
+        case .githubOwnedRepositories:
+            return "GitHub"
+        case .githubGlobalRepositories:
+            return "GitHub Global"
+        case .githubIssues:
+            return "GitHub Issues"
+        case .githubPullRequests:
+            return "GitHub PRs"
+        case .ghqRepositories:
+            return "ghq"
         }
     }
 
@@ -39,6 +54,16 @@ enum SearchMode: String, CaseIterable {
             return "Search Apple Notes"
         case .clipboard:
             return "Search clipboard history"
+        case .githubOwnedRepositories:
+            return "Search your GitHub and ghq repositories"
+        case .githubGlobalRepositories:
+            return "Search all GitHub repositories"
+        case .githubIssues:
+            return "Search GitHub issues in your repositories"
+        case .githubPullRequests:
+            return "Search GitHub pull requests in your repositories"
+        case .ghqRepositories:
+            return "Search ghq repositories"
         }
     }
 }
@@ -59,6 +84,26 @@ enum SearchModeParser {
 
         if lowercased.hasPrefix("vi ") {
             return ParsedSearchQuery(mode: .clipboard, query: String(rawValue.dropFirst(3)).condensedWhitespace(), clipboardImageOnly: true)
+        }
+
+        if lowercased.hasPrefix("ghq ") {
+            return ParsedSearchQuery(mode: .ghqRepositories, query: String(rawValue.dropFirst(4)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("gh ") {
+            return ParsedSearchQuery(mode: .githubGlobalRepositories, query: String(rawValue.dropFirst(3)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("gi ") {
+            return ParsedSearchQuery(mode: .githubIssues, query: String(rawValue.dropFirst(3)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("gp ") {
+            return ParsedSearchQuery(mode: .githubPullRequests, query: String(rawValue.dropFirst(3)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("g ") {
+            return ParsedSearchQuery(mode: .githubOwnedRepositories, query: String(rawValue.dropFirst(2)).condensedWhitespace(), clipboardImageOnly: false)
         }
 
         if lowercased.hasPrefix("f ") {

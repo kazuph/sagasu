@@ -75,6 +75,51 @@ func parsesClipboardImagePrefix() {
 }
 
 @Test
+func parsesGitHubOwnedRepositoryPrefix() {
+    let parsed = SearchModeParser.parse("g sagasu")
+
+    #expect(parsed.mode == .githubOwnedRepositories)
+    #expect(parsed.query == "sagasu")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
+func parsesGitHubGlobalRepositoryPrefix() {
+    let parsed = SearchModeParser.parse("gh swiftui")
+
+    #expect(parsed.mode == .githubGlobalRepositories)
+    #expect(parsed.query == "swiftui")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
+func parsesGitHubIssuePrefix() {
+    let parsed = SearchModeParser.parse("gi crash")
+
+    #expect(parsed.mode == .githubIssues)
+    #expect(parsed.query == "crash")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
+func parsesGitHubPullRequestPrefix() {
+    let parsed = SearchModeParser.parse("gp release")
+
+    #expect(parsed.mode == .githubPullRequests)
+    #expect(parsed.query == "release")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
+func parsesGHQOnlyPrefixBeforeGitHubGlobalPrefix() {
+    let parsed = SearchModeParser.parse("ghq sagasu")
+
+    #expect(parsed.mode == .ghqRepositories)
+    #expect(parsed.query == "sagasu")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
 func shellCommandRunnerHandlesLargeOutput() throws {
     let output = try ShellCommandRunner().run(
         executableURL: URL(fileURLWithPath: "/usr/bin/jot"),

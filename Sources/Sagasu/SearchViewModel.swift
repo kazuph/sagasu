@@ -56,6 +56,16 @@ final class SearchViewModel: ObservableObject {
                 return "Search saved clipboard images only. Type `v ` for text + image history. Default retention is 3 months, reuse extends 6 months, ⌘P toggles pin, and ⌘D deletes."
             }
             return "Search saved clipboard text and images. Default retention is 3 months, reuse extends 6 months, ⌘P toggles pin, and ⌘D deletes."
+        case .githubOwnedRepositories:
+            return "`g ` searches ghq first, then your GitHub and organization repositories."
+        case .githubGlobalRepositories:
+            return "`gh ` searches repositories across GitHub."
+        case .githubIssues:
+            return "`gi ` searches issues in your GitHub and organization repositories."
+        case .githubPullRequests:
+            return "`gp ` searches pull requests in your GitHub and organization repositories."
+        case .ghqRepositories:
+            return "`ghq ` searches local ghq repositories only."
         }
     }
 
@@ -142,7 +152,7 @@ final class SearchViewModel: ObservableObject {
 
         searchTask = Task { [weak self] in
             do {
-                if parsedQuery.query.isEmpty && parsedQuery.mode != .applications && parsedQuery.mode != .clipboard && parsedQuery.mode != .directories && parsedQuery.mode != .terminals {
+                if parsedQuery.query.isEmpty && parsedQuery.mode.allowsEmptyQuery == false {
                     await MainActor.run {
                         self?.results = []
                         self?.selectedIndex = 0
@@ -186,5 +196,16 @@ final class SearchViewModel: ObservableObject {
         guard let action = results[safe: selectedIndex]?.action else { return nil }
         guard case .restoreClipboard(let entryID) = action else { return nil }
         return entryID
+    }
+}
+
+private extension SearchMode {
+    var allowsEmptyQuery: Bool {
+        switch self {
+        case .applications, .clipboard, .directories, .terminals, .githubOwnedRepositories, .ghqRepositories:
+            return true
+        case .files, .notes, .githubGlobalRepositories, .githubIssues, .githubPullRequests:
+            return false
+        }
     }
 }
