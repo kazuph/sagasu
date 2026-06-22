@@ -120,6 +120,15 @@ func parsesGHQOnlyPrefixBeforeGitHubGlobalPrefix() {
 }
 
 @Test
+func parsesLinearIssuePrefix() {
+    let parsed = SearchModeParser.parse("l MON-123")
+
+    #expect(parsed.mode == .linearIssues)
+    #expect(parsed.query == "MON-123")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
 func shellCommandRunnerHandlesLargeOutput() throws {
     let output = try ShellCommandRunner().run(
         executableURL: URL(fileURLWithPath: "/usr/bin/jot"),

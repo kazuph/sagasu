@@ -12,6 +12,7 @@ enum SearchMode: String, CaseIterable {
     case githubIssues
     case githubPullRequests
     case ghqRepositories
+    case linearIssues
 
     var displayName: String {
         switch self {
@@ -37,6 +38,8 @@ enum SearchMode: String, CaseIterable {
             return "GitHub PRs"
         case .ghqRepositories:
             return "ghq"
+        case .linearIssues:
+            return "Linear"
         }
     }
 
@@ -64,6 +67,8 @@ enum SearchMode: String, CaseIterable {
             return "Search GitHub pull requests in your repositories"
         case .ghqRepositories:
             return "Search ghq repositories"
+        case .linearIssues:
+            return "Search Linear issues"
         }
     }
 }
@@ -88,6 +93,10 @@ enum SearchModeParser {
 
         if lowercased.hasPrefix("ghq ") {
             return ParsedSearchQuery(mode: .ghqRepositories, query: String(rawValue.dropFirst(4)).condensedWhitespace(), clipboardImageOnly: false)
+        }
+
+        if lowercased.hasPrefix("l ") {
+            return ParsedSearchQuery(mode: .linearIssues, query: String(rawValue.dropFirst(2)).condensedWhitespace(), clipboardImageOnly: false)
         }
 
         if lowercased.hasPrefix("gh ") {

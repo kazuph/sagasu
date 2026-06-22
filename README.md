@@ -24,11 +24,13 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 - `gi ` searches issues in repositories owned by you and your GitHub organizations when `gh` is available.
 - `gp ` searches pull requests in repositories owned by you and your GitHub organizations when `gh` is available.
 - `ghq ` searches only local `ghq list` entries.
+- `l ` searches Linear issues. On first use, Sagasu asks for a personal Linear API key and stores it in macOS Keychain.
 
 When Sagasu opens with an empty query, recently modified folders are mixed near the top of the default application list. This makes recent work folders available immediately without switching modes. If you type `f ` first, Sagasu switches to folder/file mode and only folder/file results are shown.
 Finder is indexed from `/System/Library/CoreServices`, so typing `finder` opens Finder from the application list.
 If the system clipboard contains an image, the default application search includes `Image: Save Clipboard Image` and `Image: Extract Text from Clipboard Image`. They are searchable with English terms such as `i`, `image`, `ocr`, `text`, `extract`, `save`, or `downloads`. Saving writes a PNG to `~/Downloads`; extracting Japanese and English text copies recognized text back to the system clipboard and adds it to the latest clipboard history.
 GitHub search results open in Chrome. Sagasu enables these modes automatically when the `gh` command is installed; `ghq` results are enabled automatically when the `ghq` command is installed.
+Linear search results open in Chrome. Sagasu calls Linear's GraphQL API directly and sends personal API keys as `Authorization: <API_KEY>`, matching Linear's personal API key authentication.
 
 ## History behavior
 

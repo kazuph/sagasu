@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 enum LauncherError: LocalizedError {
     case accessibilityPermissionRequired
@@ -11,6 +12,10 @@ enum LauncherError: LocalizedError {
     case notesAutomationFailed(String)
     case commandFailed(executable: String, message: String)
     case snapshotFailed(String)
+    case linearAPIKeyRequired
+    case linearRequestFailed(String)
+    case keychainReadFailed(OSStatus)
+    case keychainWriteFailed(OSStatus)
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +39,14 @@ enum LauncherError: LocalizedError {
             return "\(executable) failed: \(message)"
         case .snapshotFailed(let message):
             return "Snapshot failed: \(message)"
+        case .linearAPIKeyRequired:
+            return "Enter a Linear API key to enable `l ` search."
+        case .linearRequestFailed(let message):
+            return "Linear search failed: \(message)"
+        case .keychainReadFailed(let status):
+            return "Could not read the Linear API key from Keychain. OSStatus \(status)."
+        case .keychainWriteFailed(let status):
+            return "Could not save the Linear API key to Keychain. OSStatus \(status)."
         }
     }
 }

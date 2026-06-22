@@ -6,6 +6,7 @@ import SwiftUI
 final class AppCoordinator: NSObject, ObservableObject {
     let clipboardStore: ClipboardHistoryStore
     let clipboardImageTextService: ClipboardImageTextService
+    let linearCredentialStore: LinearCredentialStore
     let searchEngine: SearchEngine
     let searchViewModel: SearchViewModel
 
@@ -24,12 +25,15 @@ final class AppCoordinator: NSObject, ObservableObject {
     override init() {
         let clipboardStore = ClipboardHistoryStore()
         let clipboardImageTextService = ClipboardImageTextService()
+        let linearCredentialStore = LinearCredentialStore()
         let searchEngine = SearchEngine(
+            linearSearchService: LinearSearchService(credentialStore: linearCredentialStore),
             clipboardStore: clipboardStore,
             clipboardImageTextService: clipboardImageTextService
         )
         self.clipboardStore = clipboardStore
         self.clipboardImageTextService = clipboardImageTextService
+        self.linearCredentialStore = linearCredentialStore
         self.searchEngine = searchEngine
         self.searchViewModel = SearchViewModel(searchEngine: searchEngine)
         super.init()
@@ -41,6 +45,9 @@ final class AppCoordinator: NSObject, ObservableObject {
         }
         self.searchViewModel.clipboardDeleteHandler = { [weak self] entryID in
             try self?.clipboardStore.delete(entryID: entryID)
+        }
+        self.searchViewModel.linearAPIKeyNeededHandler = { [weak self] in
+            self?.presentLinearAPIKeyDialog()
         }
     }
 
@@ -263,9 +270,35 @@ final class AppCoordinator: NSObject, ObservableObject {
                 return
             case .focusTerminalPane(let paneID):
                 try HerdrSearchService().focusPane(withID: paneID)
+            case .configureLinearAPIKey:
+                presentLinearAPIKeyDialog()
+                return
             }
             try? searchEngine.markUsed(action: action)
             hideLauncher()
+        } catch {
+            searchViewModel.present(error: error)
+        }
+    }
+
+    private func presentLinearAPIKeyDialog() {
+        let alert = NSAlert()
+        alert.messageText = "Set Linear API Key"
+        alert.informativeText = "Paste a personal Linear API key. Sagasu stores it in macOS Keychain and uses it only for `l ` Linear issue search."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let inputField = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 420, height: 24))
+        inputField.placeholderString = "lin_api_..."
+        alert.accessoryView = inputField
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        do {
+            try linearCredentialStore.save(apiKey: inputField.stringValue)
+            searchViewModel.refreshCurrentSearch()
         } catch {
             searchViewModel.present(error: error)
         }

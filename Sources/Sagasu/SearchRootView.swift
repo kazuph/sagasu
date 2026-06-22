@@ -396,6 +396,8 @@ private extension SearchMode {
             return .green
         case .githubOwnedRepositories, .githubGlobalRepositories, .githubIssues, .githubPullRequests, .ghqRepositories:
             return .purple
+        case .linearIssues:
+            return .indigo
         }
     }
 
@@ -421,6 +423,8 @@ private extension SearchMode {
             return "arrow.triangle.pull"
         case .ghqRepositories:
             return "externaldrive"
+        case .linearIssues:
+            return "line.3.horizontal.decrease.circle"
         }
     }
 
@@ -448,6 +452,8 @@ private extension SearchMode {
             return query.isEmpty ? "Type after `gp ` to search pull requests" : "No GitHub pull requests matched"
         case .ghqRepositories:
             return query.isEmpty ? "ghq repositories" : "No ghq repositories matched"
+        case .linearIssues:
+            return query.isEmpty ? "Type after `l ` to search Linear issues" : "No Linear issues matched"
         }
     }
 
@@ -481,6 +487,8 @@ private extension SearchMode {
             return "`gp ` searches pull requests in repositories owned by you and your organizations."
         case .ghqRepositories:
             return "`ghq ` searches only local ghq repository entries."
+        case .linearIssues:
+            return "Sagasu stores your Linear API key in macOS Keychain and opens issue results in Chrome."
         }
     }
 }

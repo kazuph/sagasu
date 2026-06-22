@@ -42,7 +42,7 @@ final class SearchViewModel: ObservableObject {
     var helperText: String {
         switch parsedQuery.mode {
         case .applications:
-            return "Default mode. Type `f ` for files, `d ` for directories, `t ` for Herdr panes, `n ` for Notes, `v ` for clipboard history."
+            return "Default mode. Type `f ` for files, `d ` for directories, `l ` for Linear, `t ` for Herdr panes, `n ` for Notes, `v ` for clipboard history."
         case .directories:
             return "Desktop / Downloads / Documents / Music / Pictures / Movies / Dropbox / iCloud / Recent Places"
         case .files:
@@ -66,15 +66,19 @@ final class SearchViewModel: ObservableObject {
             return "`gp ` searches pull requests in your GitHub and organization repositories."
         case .ghqRepositories:
             return "`ghq ` searches local ghq repositories only."
+        case .linearIssues:
+            return "`l ` searches Linear issues. If no API key is saved, Sagasu asks once and stores it in Keychain."
         }
     }
 
     var actionHandler: ((SearchAction) -> Void)?
     var clipboardPinToggleHandler: ((UUID) throws -> Void)?
     var clipboardDeleteHandler: ((UUID) throws -> Void)?
+    var linearAPIKeyNeededHandler: (() -> Void)?
 
     private let searchEngine: SearchEngine
     private var searchTask: Task<Void, Never>?
+    private var didRequestLinearAPIKeyForPresentation = false
 
     init(searchEngine: SearchEngine) {
         self.searchEngine = searchEngine
@@ -82,6 +86,7 @@ final class SearchViewModel: ObservableObject {
     }
 
     func prepareForPresentation(initialQuery: String = "") {
+        didRequestLinearAPIKeyForPresentation = false
         rawQuery = initialQuery
         selectedIndex = 0
         errorMessage = nil
@@ -142,6 +147,10 @@ final class SearchViewModel: ObservableObject {
         errorMessage = error.localizedDescription
     }
 
+    func refreshCurrentSearch() {
+        refreshSearch()
+    }
+
     private func refreshSearch() {
         searchTask?.cancel()
         let parsedQuery = SearchModeParser.parse(rawQuery)
@@ -149,6 +158,15 @@ final class SearchViewModel: ObservableObject {
         selectedIndex = 0
         isSearching = false
         let searchEngine = self.searchEngine
+
+        if parsedQuery.mode == .linearIssues,
+           searchEngine.hasLinearAPIKey() == false,
+           didRequestLinearAPIKeyForPresentation == false {
+            didRequestLinearAPIKeyForPresentation = true
+            Task { @MainActor [weak self] in
+                self?.linearAPIKeyNeededHandler?()
+            }
+        }
 
         searchTask = Task { [weak self] in
             do {
@@ -202,7 +220,7 @@ final class SearchViewModel: ObservableObject {
 private extension SearchMode {
     var allowsEmptyQuery: Bool {
         switch self {
-        case .applications, .clipboard, .directories, .terminals, .githubOwnedRepositories, .ghqRepositories:
+        case .applications, .clipboard, .directories, .terminals, .githubOwnedRepositories, .ghqRepositories, .linearIssues:
             return true
         case .files, .notes, .githubGlobalRepositories, .githubIssues, .githubPullRequests:
             return false

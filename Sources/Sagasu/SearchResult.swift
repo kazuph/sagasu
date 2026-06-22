@@ -9,6 +9,7 @@ enum SearchAction: Hashable {
     case saveClipboardImage
     case extractTextFromClipboardImage
     case focusTerminalPane(String)
+    case configureLinearAPIKey
 }
 
 enum SearchResultVisual: Hashable {
