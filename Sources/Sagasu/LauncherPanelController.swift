@@ -84,6 +84,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
     private var isBecomeKeyPending = false
     private var lastShownAt: Date?
     private var inputSourceSelectionGeneration = 0
+    var suppressAutoHide = false
     var onDismiss: (() -> Void)?
 
     var isVisible: Bool {
@@ -201,6 +202,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        guard suppressAutoHide == false else { return }
         guard isBecomeKeyPending == false else { return }
         if let lastShownAt, Date().timeIntervalSince(lastShownAt) < 0.25 {
             return
@@ -209,6 +211,7 @@ final class LauncherPanelController: NSWindowController, NSWindowDelegate {
     }
 
     func windowDidResignMain(_ notification: Notification) {
+        guard suppressAutoHide == false else { return }
         guard isBecomeKeyPending == false else { return }
         if let lastShownAt, Date().timeIntervalSince(lastShownAt) < 0.25 {
             return

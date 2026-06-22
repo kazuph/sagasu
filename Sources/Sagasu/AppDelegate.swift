@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidResignActive(_ notification: Notification) {
+        guard coordinator.shouldHideLauncherOnApplicationResignActive else { return }
         coordinator.hideLauncher()
     }
 

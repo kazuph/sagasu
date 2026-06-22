@@ -20,7 +20,12 @@ final class AppCoordinator: NSObject, ObservableObject {
     private var lastWindowCommand: WindowManager.Command?
     private var lastWindowCommandAt = Date.distantPast
     private var applicationBeforeLauncher: NSRunningApplication?
+    private var isPresentingLinearAPIKeyDialog = false
     private(set) var isQuitRequested = false
+
+    var shouldHideLauncherOnApplicationResignActive: Bool {
+        isPresentingLinearAPIKeyDialog == false
+    }
 
     override init() {
         let clipboardStore = ClipboardHistoryStore()
@@ -282,6 +287,14 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     private func presentLinearAPIKeyDialog() {
+        guard isPresentingLinearAPIKeyDialog == false else { return }
+        isPresentingLinearAPIKeyDialog = true
+        launcherPanelController?.suppressAutoHide = true
+        defer {
+            launcherPanelController?.suppressAutoHide = false
+            isPresentingLinearAPIKeyDialog = false
+        }
+
         let alert = NSAlert()
         alert.messageText = "Set Linear API Key"
         alert.informativeText = "Paste a personal Linear API key. Sagasu stores it in macOS Keychain and uses it only for `l ` Linear issue search."
@@ -299,8 +312,10 @@ final class AppCoordinator: NSObject, ObservableObject {
         do {
             try linearCredentialStore.save(apiKey: inputField.stringValue)
             searchViewModel.refreshCurrentSearch()
+            launcherPanelController?.window?.makeKeyAndOrderFront(nil)
         } catch {
             searchViewModel.present(error: error)
+            launcherPanelController?.window?.makeKeyAndOrderFront(nil)
         }
     }
 
