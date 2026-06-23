@@ -8,6 +8,7 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 - Press `Command-Shift-V` to open Sagasu directly in clipboard history mode with `v ` prefilled.
 - Sagasu switches the keyboard input source to an ASCII-capable layout when the launcher search field is focused.
 - Type normally to search applications. Google and ChatGPT routes are also shown for non-empty application searches.
+- Click a prefix button below the search field to insert that prefix plus a space and switch modes without typing it manually.
 - Select a result and press `Return` to run it.
 
 ## Search prefixes

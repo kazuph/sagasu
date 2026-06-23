@@ -117,6 +117,12 @@ final class SearchViewModel: ObservableObject {
         actionHandler?(action)
     }
 
+    func activatePrefix(_ prefix: String) {
+        rawQuery = "\(prefix) "
+        selectedIndex = 0
+        errorMessage = nil
+    }
+
     func togglePinForSelectedClipboardEntry() {
         guard parsedQuery.mode == .clipboard else { return }
         guard let entryID = selectedClipboardEntryID else { return }

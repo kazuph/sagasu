@@ -34,6 +34,18 @@ func presentationCanStartInClipboardMode() async throws {
 
 @MainActor
 @Test
+func activatingPrefixUpdatesQueryAndMode() async throws {
+    let viewModel = try makeSearchViewModel()
+
+    viewModel.activatePrefix("l")
+
+    #expect(viewModel.rawQuery == "l ")
+    #expect(viewModel.parsedQuery.mode == .linearIssues)
+    #expect(viewModel.selectedIndex == 0)
+}
+
+@MainActor
+@Test
 func newSearchResultsDoNotKeepPreviousCursorPosition() async throws {
     let viewModel = try makeSearchViewModel()
 

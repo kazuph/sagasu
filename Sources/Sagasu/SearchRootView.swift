@@ -35,10 +35,10 @@ struct SearchRootView: View {
                         title: viewModel.badgeTitle,
                         color: viewModel.parsedQuery.mode.badgeColor
                     )
-                    Text(viewModel.helperText)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    PrefixShortcutBar(
+                        selectedMode: viewModel.parsedQuery.mode,
+                        activate: viewModel.activatePrefix
+                    )
                     Spacer()
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
@@ -108,6 +108,88 @@ struct SearchRootView: View {
         .padding(12)
         .id(viewModel.presentationID)
         .onExitCommand(perform: onCancel)
+    }
+}
+
+private struct PrefixShortcut: Identifiable {
+    let id: String
+    let prefix: String
+    let title: String
+    let mode: SearchMode
+
+    init(_ prefix: String, _ title: String, mode: SearchMode) {
+        self.id = prefix
+        self.prefix = prefix
+        self.title = title
+        self.mode = mode
+    }
+}
+
+private struct PrefixShortcutBar: View {
+    let selectedMode: SearchMode
+    let activate: (String) -> Void
+
+    private let shortcuts = [
+        PrefixShortcut("f", "Files", mode: .files),
+        PrefixShortcut("d", "Dirs", mode: .directories),
+        PrefixShortcut("l", "Linear", mode: .linearIssues),
+        PrefixShortcut("t", "Herdr", mode: .terminals),
+        PrefixShortcut("n", "Notes", mode: .notes),
+        PrefixShortcut("v", "Clip", mode: .clipboard),
+        PrefixShortcut("g", "GitHub", mode: .githubOwnedRepositories),
+        PrefixShortcut("gh", "All", mode: .githubGlobalRepositories),
+        PrefixShortcut("gi", "Issues", mode: .githubIssues),
+        PrefixShortcut("gp", "PRs", mode: .githubPullRequests),
+        PrefixShortcut("ghq", "Local", mode: .ghqRepositories)
+    ]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(shortcuts) { shortcut in
+                    PrefixShortcutButton(
+                        shortcut: shortcut,
+                        isActive: shortcut.mode == selectedMode,
+                        activate: activate
+                    )
+                }
+            }
+            .padding(.trailing, 6)
+        }
+        .frame(height: 24)
+    }
+}
+
+private struct PrefixShortcutButton: View {
+    let shortcut: PrefixShortcut
+    let isActive: Bool
+    let activate: (String) -> Void
+
+    var body: some View {
+        Button {
+            activate(shortcut.prefix)
+        } label: {
+            HStack(spacing: 4) {
+                Text(shortcut.prefix)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                Text(shortcut.title)
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .frame(height: 22)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isActive ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.10))
+            )
+            .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(isActive ? Color.accentColor.opacity(0.24) : Color.secondary.opacity(0.10), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .help("Type \(shortcut.prefix) space")
     }
 }
 
