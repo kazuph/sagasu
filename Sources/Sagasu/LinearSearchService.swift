@@ -36,6 +36,7 @@ struct LinearSearchService: Sendable {
 
         struct State: Decodable {
             let name: String
+            let type: String
         }
 
         struct User: Decodable {
@@ -111,7 +112,18 @@ struct LinearSearchService: Sendable {
         if let errors = response.errors, errors.isEmpty == false {
             throw LauncherError.linearRequestFailed(errors.map(\.message).joined(separator: " / "))
         }
-        return response.data?.searchIssues.nodes.map(issueResult) ?? []
+        return response.data?.searchIssues.nodes
+            .enumerated()
+            .filter { _, issue in isDoneLike(issue) == false }
+            .sorted { lhs, rhs in
+                let lhsRank = statePriorityRank(for: lhs.element)
+                let rhsRank = statePriorityRank(for: rhs.element)
+                if lhsRank != rhsRank {
+                    return lhsRank < rhsRank
+                }
+                return lhs.offset < rhs.offset
+            }
+            .map { _, issue in issueResult(issue) } ?? []
     }
 
     static func graphQLErrorMessage(from data: Data) -> String? {
@@ -134,9 +146,46 @@ struct LinearSearchService: Sendable {
         )
     }
 
+    private static func isDoneLike(_ issue: Issue) -> Bool {
+        let normalizedName = issue.state.name.lowercased()
+        let normalizedType = issue.state.type.lowercased()
+        return normalizedType == "completed"
+            || normalizedType == "canceled"
+            || normalizedName == "done"
+            || normalizedName == "completed"
+            || normalizedName == "canceled"
+            || normalizedName == "cancelled"
+    }
+
+    private static func statePriorityRank(for issue: Issue) -> Int {
+        let normalizedName = issue.state.name.lowercased()
+        let normalizedType = issue.state.type.lowercased()
+
+        if normalizedName.contains("review") {
+            return 0
+        }
+        if normalizedType == "started" || normalizedName.contains("progress") {
+            return 1
+        }
+        if normalizedType == "unstarted" || normalizedName == "todo" || normalizedName == "to do" {
+            return 2
+        }
+        if normalizedType == "backlog" || normalizedName == "backlog" {
+            return 3
+        }
+        return 4
+    }
+
     private static let issueSearchQuery = """
     query SagasuLinearIssueSearch($query: String!, $first: Int) {
-      searchIssues(term: $query, first: $first) {
+      searchIssues(
+        term: $query,
+        first: $first,
+        filter: {
+          completedAt: { null: true },
+          canceledAt: { null: true }
+        }
+      ) {
         nodes {
           identifier
           title
@@ -147,6 +196,7 @@ struct LinearSearchService: Sendable {
           }
           state {
             name
+            type
           }
           assignee {
             name
