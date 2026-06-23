@@ -42,19 +42,37 @@ struct NotesSearchService: Sendable {
         set queryText to "\(appleScriptEscaped(query))"
         set maximumCount to \(limit)
         set outputLines to {}
-        tell application "Notes"
-            ignoring case
-                set matchedNotes to every note whose name contains queryText or body contains queryText
-            end ignoring
-            set noteCount to count of matchedNotes
-            if noteCount > maximumCount then
-                set noteCount to maximumCount
-            end if
-            repeat with idx from 1 to noteCount
-                set currentNote to item idx of matchedNotes
-                set end of outputLines to (my sanitized(id of currentNote) & tab & my sanitized(name of currentNote) & tab & my sanitized(body of currentNote))
-            end repeat
-        end tell
+        with timeout of 5 seconds
+            tell application "Notes"
+                set allNotes to every note
+                repeat with currentNote in allNotes
+                    if (count of outputLines) >= maximumCount then exit repeat
+
+                    set noteName to name of currentNote as text
+                    set matchedNote to false
+                    ignoring case
+                        if noteName contains queryText then
+                            set matchedNote to true
+                        end if
+                    end ignoring
+
+                    if matchedNote is false then
+                        set noteBody to body of currentNote as text
+                        ignoring case
+                            if noteBody contains queryText then
+                                set matchedNote to true
+                            end if
+                        end ignoring
+                    else
+                        set noteBody to body of currentNote as text
+                    end if
+
+                    if matchedNote is true then
+                        set end of outputLines to (my sanitized(id of currentNote) & tab & my sanitized(noteName) & tab & my sanitized(noteBody))
+                    end if
+                end repeat
+            end tell
+        end timeout
         set AppleScript's text item delimiters to linefeed
         return outputLines as text
 
@@ -95,7 +113,16 @@ private func executeAppleScript(_ script: String) throws -> String {
         throw LauncherError.notesAutomationFailed(error.localizedDescription)
     }
 
-    process.waitUntilExit()
+    let semaphore = DispatchSemaphore(value: 0)
+    process.terminationHandler = { _ in
+        semaphore.signal()
+    }
+
+    let timeout = DispatchTime.now() + .seconds(6)
+    guard semaphore.wait(timeout: timeout) == .success else {
+        process.terminate()
+        throw LauncherError.notesAutomationFailed("timed out")
+    }
 
     let output = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     let errorOutput = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""

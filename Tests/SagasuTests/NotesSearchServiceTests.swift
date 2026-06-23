@@ -11,3 +11,12 @@ func notesSearchScriptUsesValidIgnoringCaseSyntaxForJapaneseQueries() {
     #expect(script.contains("end ignoring"))
     #expect(script.contains("considering case false") == false)
 }
+
+@Test
+func notesSearchScriptDoesNotAskNotesForUnboundedBodyFiltering() {
+    let script = NotesSearchService.searchScript(for: "銀行", limit: 30)
+
+    #expect(script.contains("with timeout of 5 seconds"))
+    #expect(script.contains("repeat with currentNote in allNotes"))
+    #expect(script.contains("every note whose") == false)
+}
