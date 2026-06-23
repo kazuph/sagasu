@@ -54,3 +54,18 @@ func linearSearchSurfacesGraphQLErrors() throws {
         _ = try LinearSearchService.searchResults(from: data)
     }
 }
+
+@Test
+func linearSearchExtractsGraphQLErrorMessageFromHTTPFailureBody() {
+    let data = """
+    {
+      "errors": [
+        {
+          "message": "Variable \\"$query\\" of type \\"String\\" used in position expecting type \\"String!\\"."
+        }
+      ]
+    }
+    """.data(using: .utf8)!
+
+    #expect(LinearSearchService.graphQLErrorMessage(from: data) == "Variable \"$query\" of type \"String\" used in position expecting type \"String!\".")
+}

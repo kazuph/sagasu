@@ -85,9 +85,13 @@ struct LinearSearchService: Sendable {
         request.httpBody = try JSONEncoder().encode(requestBody)
 
         let (data, response) = try await urlSession.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse,
-           (200..<300).contains(httpResponse.statusCode) == false {
-            throw LauncherError.linearRequestFailed("HTTP \(httpResponse.statusCode)")
+        if let httpResponse = response as? HTTPURLResponse {
+            if (200..<300).contains(httpResponse.statusCode) == false {
+                if let message = Self.graphQLErrorMessage(from: data) {
+                    throw LauncherError.linearRequestFailed(message)
+                }
+                throw LauncherError.linearRequestFailed("HTTP \(httpResponse.statusCode)")
+            }
         }
         return try Self.searchResults(from: data)
     }
@@ -110,6 +114,15 @@ struct LinearSearchService: Sendable {
         return response.data?.searchIssues.nodes.map(issueResult) ?? []
     }
 
+    static func graphQLErrorMessage(from data: Data) -> String? {
+        guard let response = try? JSONDecoder().decode(GraphQLResponse.self, from: data),
+              let errors = response.errors,
+              errors.isEmpty == false else {
+            return nil
+        }
+        return errors.map(\.message).joined(separator: " / ")
+    }
+
     private static func issueResult(_ issue: Issue) -> SearchResult {
         let assignee = issue.assignee?.name ?? "Unassigned"
         return SearchResult(
@@ -122,7 +135,7 @@ struct LinearSearchService: Sendable {
     }
 
     private static let issueSearchQuery = """
-    query SagasuLinearIssueSearch($query: String, $first: Int) {
+    query SagasuLinearIssueSearch($query: String!, $first: Int) {
       searchIssues(term: $query, first: $first) {
         nodes {
           identifier
