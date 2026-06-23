@@ -5,7 +5,7 @@ struct NotesSearchService: Sendable {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedQuery.isEmpty == false else { return [] }
 
-        let output = try executeAppleScript(script(for: trimmedQuery, limit: limit))
+        let output = try executeAppleScript(Self.searchScript(for: trimmedQuery, limit: limit))
         return output
             .split(whereSeparator: \.isNewline)
             .compactMap { line in
@@ -37,15 +37,15 @@ struct NotesSearchService: Sendable {
         _ = try executeAppleScript(script)
     }
 
-    private func script(for query: String, limit: Int) -> String {
+    static func searchScript(for query: String, limit: Int) -> String {
         """
         set queryText to "\(appleScriptEscaped(query))"
         set maximumCount to \(limit)
         set outputLines to {}
         tell application "Notes"
-            considering case false
+            ignoring case
                 set matchedNotes to every note whose name contains queryText or body contains queryText
-            end considering
+            end ignoring
             set noteCount to count of matchedNotes
             if noteCount > maximumCount then
                 set noteCount to maximumCount
