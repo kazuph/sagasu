@@ -50,7 +50,7 @@ final class SearchViewModel: ObservableObject {
         case .terminals:
             return "Search Herdr panes by project, agent, status, workspace, or pane id."
         case .notes:
-            return "Searches Notes titles and bodies."
+            return "Searches Notes titles."
         case .clipboard:
             if parsedQuery.clipboardImageOnly {
                 return "Search saved clipboard images only. Type `v ` for text + image history. Default retention is 3 months, reuse extends 6 months, ⌘P toggles pin, and ⌘D deletes."

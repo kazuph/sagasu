@@ -13,10 +13,12 @@ func notesSearchScriptUsesValidIgnoringCaseSyntaxForJapaneseQueries() {
 }
 
 @Test
-func notesSearchScriptDoesNotAskNotesForUnboundedBodyFiltering() {
+func notesSearchScriptUsesBoundedTitleFiltering() {
     let script = NotesSearchService.searchScript(for: "銀行", limit: 30)
 
     #expect(script.contains("with timeout of 5 seconds"))
-    #expect(script.contains("repeat with currentNote in allNotes"))
+    #expect(script.contains("notes whose name contains queryText"))
+    #expect(script.contains("plaintext of currentNote"))
     #expect(script.contains("every note whose") == false)
+    #expect(script.contains("body contains queryText") == false)
 }

@@ -44,32 +44,12 @@ struct NotesSearchService: Sendable {
         set outputLines to {}
         with timeout of 5 seconds
             tell application "Notes"
-                set allNotes to every note
-                repeat with currentNote in allNotes
+                ignoring case
+                    set matchedNotes to notes whose name contains queryText
+                end ignoring
+                repeat with currentNote in matchedNotes
                     if (count of outputLines) >= maximumCount then exit repeat
-
-                    set noteName to name of currentNote as text
-                    set matchedNote to false
-                    ignoring case
-                        if noteName contains queryText then
-                            set matchedNote to true
-                        end if
-                    end ignoring
-
-                    if matchedNote is false then
-                        set noteBody to body of currentNote as text
-                        ignoring case
-                            if noteBody contains queryText then
-                                set matchedNote to true
-                            end if
-                        end ignoring
-                    else
-                        set noteBody to body of currentNote as text
-                    end if
-
-                    if matchedNote is true then
-                        set end of outputLines to (my sanitized(id of currentNote) & tab & my sanitized(noteName) & tab & my sanitized(noteBody))
-                    end if
+                    set end of outputLines to (my sanitized(id of currentNote) & tab & my sanitized(name of currentNote) & tab & my sanitized(plaintext of currentNote))
                 end repeat
             end tell
         end timeout

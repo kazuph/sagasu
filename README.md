@@ -17,7 +17,7 @@ Sagasu is a small macOS launcher for applications, files, Apple Notes, web route
 - `F ` with no query shows recently modified folders.
 - `d ` searches directories only.
 - `t ` searches Herdr panes by project directory, agent, status, workspace, or pane id. Pressing `Return` focuses that Herdr pane and activates the terminal app.
-- `n ` searches Apple Notes.
+- `n ` searches Apple Notes titles.
 - `v ` searches clipboard text and image history.
 - `vi ` searches clipboard images only.
 - `g ` searches repositories owned by you and your GitHub organizations when `gh` is available. Local `ghq list` matches are shown first when `ghq` is installed.
