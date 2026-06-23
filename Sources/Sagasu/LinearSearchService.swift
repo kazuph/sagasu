@@ -21,7 +21,7 @@ struct LinearSearchService: Sendable {
     }
 
     private struct DataPayload: Decodable {
-        let issueSearch: IssueConnection
+        let searchIssues: IssueConnection
     }
 
     private struct IssueConnection: Decodable {
@@ -107,7 +107,7 @@ struct LinearSearchService: Sendable {
         if let errors = response.errors, errors.isEmpty == false {
             throw LauncherError.linearRequestFailed(errors.map(\.message).joined(separator: " / "))
         }
-        return response.data?.issueSearch.nodes.map(issueResult) ?? []
+        return response.data?.searchIssues.nodes.map(issueResult) ?? []
     }
 
     private static func issueResult(_ issue: Issue) -> SearchResult {
@@ -123,7 +123,7 @@ struct LinearSearchService: Sendable {
 
     private static let issueSearchQuery = """
     query SagasuLinearIssueSearch($query: String, $first: Int) {
-      issueSearch(query: $query, first: $first) {
+      searchIssues(term: $query, first: $first) {
         nodes {
           identifier
           title

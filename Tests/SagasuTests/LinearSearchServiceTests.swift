@@ -7,7 +7,7 @@ func linearSearchDecodesIssueSearchResults() throws {
     let data = """
     {
       "data": {
-        "issueSearch": {
+        "searchIssues": {
           "nodes": [
             {
               "identifier": "MON-123",
