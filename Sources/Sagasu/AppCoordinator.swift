@@ -278,6 +278,9 @@ final class AppCoordinator: NSObject, ObservableObject {
             case .configureLinearAPIKey:
                 presentLinearAPIKeyDialog()
                 return
+            case .copyText(let text):
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
             }
             try? searchEngine.markUsed(action: action)
             hideLauncher()

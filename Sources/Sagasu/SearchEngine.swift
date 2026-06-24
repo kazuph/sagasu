@@ -8,6 +8,7 @@ struct SearchEngine {
     private let clipboardImageTextService: ClipboardImageTextService
     private let herdrSearchService: HerdrSearchService?
     private let webRouteSearchService: WebRouteSearchService
+    private let calculatorSearchService: CalculatorSearchService
     private let gitHubSearchService: GitHubSearchService
     private let linearSearchService: LinearSearchService
     private let usageHistoryStore: UsageHistoryStore
@@ -22,6 +23,7 @@ struct SearchEngine {
         clipboardStore: ClipboardHistoryStore,
         clipboardImageTextService: ClipboardImageTextService = ClipboardImageTextService(),
         herdrSearchService: HerdrSearchService? = try? HerdrSearchService(),
+        calculatorSearchService: CalculatorSearchService = CalculatorSearchService(),
         usageHistoryStore: UsageHistoryStore = UsageHistoryStore()
     ) {
         self.applicationSearchService = applicationSearchService
@@ -31,6 +33,7 @@ struct SearchEngine {
         self.clipboardImageTextService = clipboardImageTextService
         self.herdrSearchService = herdrSearchService
         self.webRouteSearchService = webRouteSearchService
+        self.calculatorSearchService = calculatorSearchService
         self.gitHubSearchService = gitHubSearchService
         self.linearSearchService = linearSearchService
         self.usageHistoryStore = usageHistoryStore
@@ -55,10 +58,12 @@ struct SearchEngine {
             }
 
             let webResults = webRouteSearchService.search(query: parsedQuery.query)
-            guard webResults.isEmpty == false else { return appResults }
+            let calculatorResults = calculatorSearchService.search(query: parsedQuery.query)
+            guard webResults.isEmpty == false || calculatorResults.isEmpty == false else { return appResults }
 
             let prioritizedApplicationCount = min(3, appResults.count)
-            var mergedResults = Array(appResults.prefix(prioritizedApplicationCount))
+            var mergedResults = calculatorResults
+            mergedResults.append(contentsOf: appResults.prefix(prioritizedApplicationCount))
             mergedResults.append(contentsOf: webResults)
             mergedResults.append(contentsOf: appResults.dropFirst(prioritizedApplicationCount))
             return mergedResults
@@ -142,7 +147,7 @@ struct SearchEngine {
             try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
         case .openURL(let url):
             try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
-        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImage, .extractTextFromClipboardImage, .focusTerminalPane, .configureLinearAPIKey:
+        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImage, .extractTextFromClipboardImage, .focusTerminalPane, .configureLinearAPIKey, .copyText:
             return
         }
     }
