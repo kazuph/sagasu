@@ -178,7 +178,7 @@ struct WindowManager {
             cycleFraction = fraction
         }
 
-        let integralTargetFrame = targetFrame.integral
+        let integralTargetFrame = Self.pixelAlignedFrame(targetFrame)
         try set(frame: integralTargetFrame, anchor: targetAnchor, for: window, application: application)
         if let cycleKey, let cycleFraction {
             Self.recordCycle(fraction: cycleFraction, for: cycleKey)
@@ -225,8 +225,21 @@ struct WindowManager {
     }
 
     static func appleScriptBoundsList(for frame: CGRect) -> String {
-        let frame = frame.integral
+        let frame = pixelAlignedFrame(frame)
         return "{\(Int(frame.minX)), \(Int(frame.minY)), \(Int(frame.maxX)), \(Int(frame.maxY))}"
+    }
+
+    static func pixelAlignedFrame(_ frame: CGRect) -> CGRect {
+        let minX = frame.minX.rounded()
+        let minY = frame.minY.rounded()
+        let maxX = frame.maxX.rounded()
+        let maxY = frame.maxY.rounded()
+        return CGRect(
+            x: minX,
+            y: minY,
+            width: max(1, maxX - minX),
+            height: max(1, maxY - minY)
+        )
     }
 
     private func focusedWindow(for application: NSRunningApplication) -> AXUIElement? {
@@ -299,7 +312,7 @@ struct WindowManager {
         focus(window, for: application)
         if application.bundleIdentifier == "com.google.Chrome" {
             let beforeFrame = self.frame(of: window)
-            try set(frame: frame, anchor: anchor, for: window)
+            try setChromeFrame(frame, anchor: anchor, for: window)
             if let afterFrame = self.frame(of: window),
                Self.framesMatch(afterFrame, frame, tolerance: 6) {
                 return
@@ -314,7 +327,7 @@ struct WindowManager {
             if let beforeFrame,
                let afterFrame = self.frame(of: window),
                Self.framesMatch(afterFrame, beforeFrame, tolerance: 1) == false {
-                try set(frame: frame, anchor: anchor, for: window)
+                try setChromeFrame(frame, anchor: anchor, for: window)
             }
 
             return
@@ -328,6 +341,19 @@ struct WindowManager {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
         AXUIElementPerformAction(window, kAXRaiseAction as CFString)
         AXUIElementSetAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, window)
+    }
+
+    private func setChromeFrame(_ frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) throws {
+        switch anchor {
+        case .right, .bottom:
+            try setSize(frame.size, for: window)
+            try setPosition(frame.origin, for: window)
+            try setSize(frame.size, for: window)
+        default:
+            try setPosition(frame.origin, for: window)
+            try setSize(frame.size, for: window)
+            try setPosition(frame.origin, for: window)
+        }
     }
 
     private func setChromeBounds(_ frame: CGRect, matching windowTitle: String?) -> Bool {
@@ -433,7 +459,7 @@ struct WindowManager {
             actualFrame.origin.y = targetFrame.maxY - actualFrame.height
         }
 
-        let integralFrame = actualFrame.integral
+        let integralFrame = Self.pixelAlignedFrame(actualFrame)
         switch anchor {
         case .right, .bottom:
             try setPosition(integralFrame.origin, for: window)

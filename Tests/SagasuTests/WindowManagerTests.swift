@@ -79,6 +79,18 @@ func appleScriptBoundsListUsesLeftTopRightBottom() {
 
 @MainActor
 @Test
+func pixelAlignedFrameDoesNotExpandFractionalHalfFrames() {
+    let left = WindowManager.pixelAlignedFrame(CGRect(x: 0, y: 0, width: 853.5, height: 100))
+    let right = WindowManager.pixelAlignedFrame(CGRect(x: 853.5, y: 0, width: 853.5, height: 100))
+
+    #expect(left.maxX == right.minX)
+    #expect(left.intersection(right).isNull || left.intersection(right).width == 0)
+    #expect(left == CGRect(x: 0, y: 0, width: 854, height: 100))
+    #expect(right == CGRect(x: 854, y: 0, width: 853, height: 100))
+}
+
+@MainActor
+@Test
 func axVisibleFrameUsesPrimaryScreenTopForStackedDisplays() {
     let primaryFrame = CGRect(x: 0, y: 0, width: 1470, height: 956)
 
