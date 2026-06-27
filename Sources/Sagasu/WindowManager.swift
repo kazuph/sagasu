@@ -231,6 +231,10 @@ struct WindowManager {
 
     private func focusedWindow(for application: NSRunningApplication) -> AXUIElement? {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
+        if application.bundleIdentifier == "com.google.Chrome",
+           let main = copyWindowAttribute(kAXMainWindowAttribute, from: appElement) {
+            return main
+        }
         if let focused = copyWindowAttribute(kAXFocusedWindowAttribute, from: appElement) {
             return focused
         }
@@ -297,14 +301,20 @@ struct WindowManager {
             let beforeFrame = self.frame(of: window)
             try set(frame: frame, anchor: anchor, for: window)
             if let afterFrame = self.frame(of: window),
-               Self.didApplyChromeBounds(afterFrame: afterFrame, beforeFrame: beforeFrame, targetFrame: frame) {
+               Self.framesMatch(afterFrame, frame, tolerance: 6) {
                 return
             }
 
             if setChromeBounds(frame, matching: title(of: window)),
                let afterFrame = self.frame(of: window),
-               Self.didApplyChromeBounds(afterFrame: afterFrame, beforeFrame: beforeFrame, targetFrame: frame) {
+               Self.framesMatch(afterFrame, frame, tolerance: 6) {
                 return
+            }
+
+            if let beforeFrame,
+               let afterFrame = self.frame(of: window),
+               Self.framesMatch(afterFrame, beforeFrame, tolerance: 1) == false {
+                try set(frame: frame, anchor: anchor, for: window)
             }
 
             return
@@ -361,14 +371,6 @@ struct WindowManager {
         } catch {
             return false
         }
-    }
-
-    private static func didApplyChromeBounds(afterFrame: CGRect, beforeFrame: CGRect?, targetFrame: CGRect) -> Bool {
-        if framesMatch(afterFrame, targetFrame, tolerance: 6) {
-            return true
-        }
-        guard let beforeFrame else { return false }
-        return framesMatch(afterFrame, beforeFrame, tolerance: 1) == false
     }
 
     private static func framesMatch(_ lhs: CGRect, _ rhs: CGRect, tolerance: CGFloat) -> Bool {
