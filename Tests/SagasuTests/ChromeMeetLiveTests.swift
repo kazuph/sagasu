@@ -35,12 +35,13 @@ func liveChromeMeetWindowCanBeMaximizedAndMovedRight() throws {
 
     let manager = WindowManager()
     try manager.perform(.maximize)
-    let maximized = try #require(frame(of: meetWindow))
+    let maximized = try #require(waitForStableFrame(of: meetWindow))
 
     try manager.perform(.rightHalf)
-    let rightHalf = try #require(frame(of: meetWindow))
+    let rightHalf = try #require(waitForStableFrame(of: meetWindow))
 
     print("liveChromeMeet maximized=\(maximized) rightHalf=\(rightHalf)")
+    #expect(maximized.width >= rightHalf.width * 1.9)
     #expect(rightHalf.width < maximized.width)
     #expect(rightHalf.minX > maximized.minX)
     #expect(abs(rightHalf.maxX - maximized.maxX) <= 8)
@@ -80,4 +81,17 @@ private func frame(of window: AXUIElement) -> CGRect? {
     AXValueGetValue((positionValue as! AXValue), .cgPoint, &position)
     AXValueGetValue((sizeValue as! AXValue), .cgSize, &size)
     return CGRect(origin: position, size: size)
+}
+
+private func waitForStableFrame(of window: AXUIElement) -> CGRect? {
+    var previous = frame(of: window)
+    for _ in 0..<8 {
+        usleep(50_000)
+        let current = frame(of: window)
+        if current == previous {
+            return current
+        }
+        previous = current
+    }
+    return previous
 }

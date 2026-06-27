@@ -71,14 +71,6 @@ func windowCycleIgnoresPreviousFractionAfterManualMove() {
 
 @MainActor
 @Test
-func appleScriptBoundsListUsesLeftTopRightBottom() {
-    let frame = CGRect(x: 2430, y: -1409, width: 960, height: 1049)
-
-    #expect(WindowManager.appleScriptBoundsList(for: frame) == "{2430, -1409, 3390, -360}")
-}
-
-@MainActor
-@Test
 func pixelAlignedFrameDoesNotExpandFractionalHalfFrames() {
     let left = WindowManager.pixelAlignedFrame(CGRect(x: 0, y: 0, width: 853.5, height: 100))
     let right = WindowManager.pixelAlignedFrame(CGRect(x: 853.5, y: 0, width: 853.5, height: 100))

@@ -224,11 +224,6 @@ struct WindowManager {
         NSWorkspace.shared.open(url)
     }
 
-    static func appleScriptBoundsList(for frame: CGRect) -> String {
-        let frame = pixelAlignedFrame(frame)
-        return "{\(Int(frame.minX)), \(Int(frame.minY)), \(Int(frame.maxX)), \(Int(frame.maxY))}"
-    }
-
     static func pixelAlignedFrame(_ frame: CGRect) -> CGRect {
         let minX = frame.minX.rounded()
         let minY = frame.minY.rounded()
@@ -311,25 +306,19 @@ struct WindowManager {
     ) throws {
         focus(window, for: application)
         if application.bundleIdentifier == "com.google.Chrome" {
-            let beforeFrame = self.frame(of: window)
-            try setChromeFrame(frame, anchor: anchor, for: window)
-            if let afterFrame = self.frame(of: window),
-               Self.framesMatch(afterFrame, frame, tolerance: 6) {
-                return
+            Self.debugLog("chrome before=\(String(describing: self.frame(of: window))) target=\(frame)")
+            for attempt in 1...16 {
+                let currentFrame = self.frame(of: window)
+                try setChromeFrame(frame, anchor: anchor, currentFrame: currentFrame, for: window)
+                if let afterFrame = self.frame(of: window),
+                   Self.framesMatch(afterFrame, frame, tolerance: 6) {
+                    Self.debugLog("chrome ax matched attempt=\(attempt) after=\(afterFrame)")
+                    return
+                }
+                usleep(40_000)
             }
 
-            if setChromeBounds(frame, matching: title(of: window)),
-               let afterFrame = self.frame(of: window),
-               Self.framesMatch(afterFrame, frame, tolerance: 6) {
-                return
-            }
-
-            if let beforeFrame,
-               let afterFrame = self.frame(of: window),
-               Self.framesMatch(afterFrame, beforeFrame, tolerance: 1) == false {
-                try setChromeFrame(frame, anchor: anchor, for: window)
-            }
-
+            Self.debugLog("chrome ax exhausted after=\(String(describing: self.frame(of: window)))")
             return
         }
 
@@ -343,59 +332,30 @@ struct WindowManager {
         AXUIElementSetAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, window)
     }
 
-    private func setChromeFrame(_ frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) throws {
+    private func setChromeFrame(
+        _ frame: CGRect,
+        anchor: FrameAnchor?,
+        currentFrame: CGRect?,
+        for window: AXUIElement
+    ) throws {
+        if let currentFrame,
+           frame.width > currentFrame.width || frame.height > currentFrame.height {
+            try setSize(frame.size, for: window)
+            try setPosition(frame.origin, for: window)
+            try setSize(frame.size, for: window)
+            return
+        }
+
         switch anchor {
         case .right, .bottom:
             try setSize(frame.size, for: window)
+            usleep(50_000)
             try setPosition(frame.origin, for: window)
             try setSize(frame.size, for: window)
         default:
             try setPosition(frame.origin, for: window)
             try setSize(frame.size, for: window)
             try setPosition(frame.origin, for: window)
-        }
-    }
-
-    private func setChromeBounds(_ frame: CGRect, matching windowTitle: String?) -> Bool {
-        let source = """
-        tell application id "com.google.Chrome"
-            if (count of windows) > 0 then
-                set targetTitle to \(Self.appleScriptStringLiteral(windowTitle ?? ""))
-                set frontTitle to title of front window
-                if targetTitle is "" or targetTitle contains frontTitle or frontTitle contains targetTitle then
-                    set bounds of front window to \(Self.appleScriptBoundsList(for: frame))
-                    return true
-                end if
-            end if
-            return false
-        end tell
-        """
-        var error: NSDictionary?
-        let output = NSAppleScript(source: source)?.executeAndReturnError(&error)
-        if error == nil, output?.booleanValue == true {
-            return true
-        }
-        return runOSAScript(source)
-    }
-
-    private func runOSAScript(_ source: String) -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", source]
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
-        do {
-            try process.run()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0,
-                  let output = process.standardOutput as? Pipe else {
-                return false
-            }
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) == "true"
-        } catch {
-            return false
         }
     }
 
@@ -406,15 +366,9 @@ struct WindowManager {
             abs(lhs.height - rhs.height) <= tolerance
     }
 
-    private static func appleScriptStringLiteral(_ value: String) -> String {
-        let escaped = value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        return "\"\(escaped)\""
-    }
-
-    private func title(of window: AXUIElement) -> String? {
-        copyStringAttribute(kAXTitleAttribute, from: window)
+    private static func debugLog(_ message: String) {
+        guard ProcessInfo.processInfo.environment["SAGASU_WINDOW_DEBUG"] == "1" else { return }
+        fputs("[WindowManager] \(message)\n", stderr)
     }
 
     private func setPosition(_ position: CGPoint, for window: AXUIElement) throws {
@@ -492,14 +446,6 @@ struct WindowManager {
             return nil
         }
         return (value as! AXValue)
-    }
-
-    private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {
-        guard let value = copyAttribute(attribute, from: element),
-              CFGetTypeID(value) == CFStringGetTypeID() else {
-            return nil
-        }
-        return (value as! String)
     }
 
     static func axFrame(from appKitFrame: CGRect, primaryScreenFrame: CGRect) -> CGRect {
