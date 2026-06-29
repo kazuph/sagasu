@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-struct ApplicationSearchService: Sendable {
+struct ApplicationSearchService {
     private struct IndexedApplication: Hashable {
         let url: URL
         let name: String
@@ -9,10 +9,12 @@ struct ApplicationSearchService: Sendable {
         let normalizedName: String
     }
 
-    private let applications: [IndexedApplication]
+    private let fileManager: FileManager
+    private let roots: [URL]
 
-    init(fileManager: FileManager = .default) {
-        applications = Self.loadApplications(fileManager: fileManager)
+    init(fileManager: FileManager = .default, roots: [URL]? = nil) {
+        self.fileManager = fileManager
+        self.roots = roots ?? Self.defaultRoots(fileManager: fileManager)
     }
 
     func search(
@@ -21,6 +23,7 @@ struct ApplicationSearchService: Sendable {
         usageHistoryStore: UsageHistoryStore? = nil,
         additionalResults: [SearchResult] = []
     ) -> [SearchResult] {
+        let applications = Self.loadApplications(fileManager: fileManager, roots: roots)
         let normalizedQuery = SearchMatcher.normalize(query)
         let runningBundleIdentifiers = Set(
             NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
@@ -83,8 +86,8 @@ struct ApplicationSearchService: Sendable {
             .map(\.0)
     }
 
-    private static func loadApplications(fileManager: FileManager) -> [IndexedApplication] {
-        let roots = [
+    private static func defaultRoots(fileManager: FileManager) -> [URL] {
+        [
             URL(fileURLWithPath: "/Applications"),
             URL(fileURLWithPath: "/Applications/Utilities"),
             URL(fileURLWithPath: "/System/Applications"),
@@ -92,7 +95,9 @@ struct ApplicationSearchService: Sendable {
             URL(fileURLWithPath: "/System/Library/CoreServices"),
             fileManager.homeDirectoryForCurrentUser.appending(path: "Applications")
         ]
+    }
 
+    private static func loadApplications(fileManager: FileManager, roots: [URL]) -> [IndexedApplication] {
         var seenPaths = Set<String>()
         var applications: [IndexedApplication] = []
 
