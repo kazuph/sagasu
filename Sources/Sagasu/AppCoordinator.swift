@@ -11,12 +11,15 @@ final class AppCoordinator: NSObject, ObservableObject {
     let searchViewModel: SearchViewModel
 
     private var launcherHotKeyMonitor: LauncherHotKeyMonitor?
+    private var launcherHotKeyMonitors: [HotKeyMonitor] = []
     private var windowHotKeyMonitor: WindowHotKeyMonitor?
     private var windowHotKeyMonitors: [HotKeyMonitor] = []
     private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
     private var statusItem: NSStatusItem?
     private var didPresentAccessibilityPermissionError = false
+    private var lastLauncherHotKey: LauncherHotKey?
+    private var lastLauncherHotKeyAt = Date.distantPast
     private var lastWindowCommand: WindowManager.Command?
     private var lastWindowCommandAt = Date.distantPast
     private var applicationBeforeLauncher: NSRunningApplication?
@@ -67,10 +70,13 @@ final class AppCoordinator: NSObject, ObservableObject {
                     self?.handleLauncherHotKey(hotKey)
                 }
             }
-            configureWindowManagementHotKeys()
         } catch {
-            NSApp.presentError(error)
+            fputs("Sagasu launcher event tap failed: \(error.localizedDescription)\n", stderr)
         }
+
+        configureLauncherCarbonHotKeys()
+
+        configureWindowManagementHotKeys()
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -103,6 +109,15 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     private func handleLauncherHotKey(_ hotKey: LauncherHotKey) {
+        let now = Date()
+        if lastLauncherHotKey == hotKey,
+           now.timeIntervalSince(lastLauncherHotKeyAt) < 0.08 {
+            return
+        }
+
+        lastLauncherHotKey = hotKey
+        lastLauncherHotKeyAt = now
+
         switch hotKey {
         case .defaultSearch:
             toggleLauncher(initialQuery: "")
@@ -183,6 +198,24 @@ final class AppCoordinator: NSObject, ObservableObject {
         "⌃⇧⌘Y  Next display",
         "⌃⇧⌘P  Previous display"
     ]
+
+    private func configureLauncherCarbonHotKeys() {
+        let bindings: [(UInt32, UInt32, LauncherHotKey)] = [
+            (UInt32(kVK_Space), UInt32(cmdKey), .defaultSearch),
+            (UInt32(kVK_ANSI_V), UInt32(cmdKey | shiftKey), .clipboardHistory)
+        ]
+
+        launcherHotKeyMonitors = bindings.compactMap { keyCode, modifiers, hotKey in
+            do {
+                return try HotKeyMonitor(keyCode: keyCode, modifiers: modifiers) { [weak self] in
+                    Task { @MainActor in self?.handleLauncherHotKey(hotKey) }
+                }
+            } catch {
+                fputs("Sagasu launcher hotkey registration failed for keyCode \(keyCode): \(error.localizedDescription)\n", stderr)
+                return nil
+            }
+        }
+    }
 
     private func configureWindowManagementHotKeys() {
         do {
