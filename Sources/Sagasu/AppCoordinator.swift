@@ -1,9 +1,10 @@
 import AppKit
 import Carbon
+import ServiceManagement
 import SwiftUI
 
 @MainActor
-final class AppCoordinator: NSObject, ObservableObject {
+final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     let clipboardStore: ClipboardHistoryStore
     let clipboardImageTextService: ClipboardImageTextService
     let linearCredentialStore: LinearCredentialStore
@@ -17,6 +18,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
     private var statusItem: NSStatusItem?
+    private var launchAtLoginMenuItem: NSMenuItem?
     private var didPresentAccessibilityPermissionError = false
     private var lastLauncherHotKey: LauncherHotKey?
     private var lastLauncherHotKeyAt = Date.distantPast
@@ -153,6 +155,19 @@ final class AppCoordinator: NSObject, ObservableObject {
         launcherPanelController?.show()
     }
 
+    @objc private func toggleLaunchAtLoginFromStatusItem(_ sender: Any?) {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            presentLaunchAtLoginError(error)
+        }
+        updateLaunchAtLoginMenuItem()
+    }
+
     @objc private func quitFromStatusItem(_ sender: Any?) {
         isQuitRequested = true
         NSApp.terminate(sender)
@@ -165,11 +180,15 @@ final class AppCoordinator: NSObject, ObservableObject {
         statusItem.button?.toolTip = "Sagasu"
 
         let menu = NSMenu()
+        menu.delegate = self
         let titleItem = NSMenuItem(title: "🔭 Sagasu", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Open Sagasu", action: #selector(showLauncherFromStatusItem(_:)), keyEquivalent: ""))
+        let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLoginFromStatusItem(_:)), keyEquivalent: "")
+        menu.addItem(launchAtLoginItem)
+        launchAtLoginMenuItem = launchAtLoginItem
         menu.addItem(.separator())
         let windowManagementItem = NSMenuItem(title: "Window Management", action: nil, keyEquivalent: "")
         windowManagementItem.isEnabled = false
@@ -186,6 +205,23 @@ final class AppCoordinator: NSObject, ObservableObject {
         }
         statusItem.menu = menu
         self.statusItem = statusItem
+        updateLaunchAtLoginMenuItem()
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        updateLaunchAtLoginMenuItem()
+    }
+
+    private func updateLaunchAtLoginMenuItem() {
+        launchAtLoginMenuItem?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+    }
+
+    private func presentLaunchAtLoginError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Launch at Login could not be updated."
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .warning
+        alert.runModal()
     }
 
     private static let windowManagementShortcutTitles = [
