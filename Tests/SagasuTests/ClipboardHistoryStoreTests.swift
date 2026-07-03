@@ -90,6 +90,37 @@ func deleteClipboardEntryRemovesStoredImageFile() throws {
     #expect(fileManager.fileExists(atPath: imageURL.path) == false)
 }
 
+@MainActor
+@Test
+func recentClipboardEntriesAreKeptBeyondCountLimitForMinimumRetention() throws {
+    let fileManager = FileManager.default
+    let baseDirectoryURL = try makeTemporaryClipboardStoreDirectory(fileManager: fileManager)
+    defer { try? fileManager.removeItem(at: baseDirectoryURL) }
+
+    let entries = (0..<501).map { index in
+        ClipboardEntry(
+            id: UUID(),
+            contentHash: "text-hash-\(index)",
+            capturedAt: Date(),
+            lastUsedAt: nil,
+            pinnedAt: nil,
+            content: .text("hello \(index)")
+        )
+    }
+    try seedClipboardStore(entries: entries, at: baseDirectoryURL, fileManager: fileManager)
+
+    let store = ClipboardHistoryStore(
+        fileManager: fileManager,
+        pasteboard: NSPasteboard.withUniqueName(),
+        baseDirectoryURL: baseDirectoryURL
+    )
+
+    #expect(store.entries.count == 501)
+
+    let persistedEntries = try loadPersistedEntries(at: baseDirectoryURL)
+    #expect(persistedEntries.count == 501)
+}
+
 private func makeTemporaryClipboardStoreDirectory(fileManager: FileManager) throws -> URL {
     let directoryURL = fileManager.temporaryDirectory
         .appending(path: "SagasuTests-\(UUID().uuidString)", directoryHint: .isDirectory)

@@ -43,6 +43,11 @@ struct ClipboardEntry: Codable, Hashable, Identifiable {
         guard let expirationDate = expirationDate(calendar: calendar) else { return false }
         return expirationDate < date
     }
+
+    func isWithinMinimumRetention(asOf date: Date, calendar: Calendar = .current) -> Bool {
+        let minimumRetentionDate = calendar.date(byAdding: .month, value: 3, to: capturedAt) ?? capturedAt
+        return minimumRetentionDate >= date
+    }
 }
 
 private struct LegacyClipboardEntry: Codable {
@@ -423,9 +428,10 @@ final class ClipboardHistoryStore: ObservableObject {
     }
 
     private func persistState() throws {
-        pruneExpiredEntries(referenceDate: Date())
+        let referenceDate = Date()
+        pruneExpiredEntries(referenceDate: referenceDate)
         pruneEntriesWithMissingImages()
-        trimUnpinnedEntriesIfNeeded()
+        trimUnpinnedEntriesIfNeeded(referenceDate: referenceDate)
 
         let data = try JSONEncoder().encode(entries)
         try data.write(to: storageURL, options: [.atomic])
@@ -437,19 +443,23 @@ final class ClipboardHistoryStore: ObservableObject {
         entries.removeAll { $0.isExpired(asOf: referenceDate) }
     }
 
-    private func trimUnpinnedEntriesIfNeeded() {
+    private func trimUnpinnedEntriesIfNeeded(referenceDate: Date) {
         guard entries.count > maxEntries else { return }
 
-        var retainedEntries = entries.filter(\.isPinned)
-        let unpinnedEntries = entries.filter { $0.isPinned == false }
+        var retainedEntries = entries.filter {
+            $0.isPinned || $0.isWithinMinimumRetention(asOf: referenceDate)
+        }
+        let trimCandidates = entries.filter {
+            $0.isPinned == false && $0.isWithinMinimumRetention(asOf: referenceDate) == false
+        }
 
         if retainedEntries.count >= maxEntries {
-            entries = retainedEntries
+            entries = retainedEntries.sorted(by: sortEntries)
             return
         }
 
         let remainingCapacity = maxEntries - retainedEntries.count
-        retainedEntries.append(contentsOf: unpinnedEntries.prefix(remainingCapacity))
+        retainedEntries.append(contentsOf: trimCandidates.prefix(remainingCapacity))
         entries = retainedEntries.sorted(by: sortEntries)
     }
 
