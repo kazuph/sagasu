@@ -15,6 +15,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     private var launcherHotKeyMonitors: [HotKeyMonitor] = []
     private var windowHotKeyMonitor: WindowHotKeyMonitor?
     private var windowHotKeyMonitors: [HotKeyMonitor] = []
+    private let debugWindowCommandNotification = Notification.Name("com.kazuph.sagasu.debug.windowCommand")
     private let windowManager = WindowManager()
     private var launcherPanelController: LauncherPanelController?
     private var statusItem: NSStatusItem?
@@ -24,6 +25,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     private var lastLauncherHotKeyAt = Date.distantPast
     private var lastWindowCommand: WindowManager.Command?
     private var lastWindowCommandAt = Date.distantPast
+    private var lastWindowCommandSource: String?
     private var applicationBeforeLauncher: NSRunningApplication?
     private var isPresentingLinearAPIKeyDialog = false
     private(set) var isQuitRequested = false
@@ -61,6 +63,10 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
+    deinit {
+        DistributedNotificationCenter.default().removeObserver(self)
+    }
+
     func start(configuration: LaunchConfiguration = .current) {
         NSApp.applicationIconImage = SagasuIcon.appIcon()
         _ = WindowManager.requestAccessibilityPermissionIfNeeded()
@@ -79,6 +85,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         configureLauncherCarbonHotKeys()
 
         configureWindowManagementHotKeys()
+        configureDebugWindowCommandsIfNeeded()
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -256,7 +263,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     private func configureWindowManagementHotKeys() {
         do {
             windowHotKeyMonitor = try WindowHotKeyMonitor { [weak self] command in
-                Task { @MainActor in self?.performWindowManagement(command) }
+                Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
             }
         } catch {
             fputs("Sagasu window hotkey monitor failed: \(error.localizedDescription)\n", stderr)
@@ -277,7 +284,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         windowHotKeyMonitors = bindings.compactMap { keyCode, command in
             do {
                 return try HotKeyMonitor(keyCode: keyCode, modifiers: modifiers) { [weak self] in
-                    Task { @MainActor in self?.performWindowManagement(command) }
+                    Task { @MainActor in self?.performWindowManagement(command, source: "carbon") }
                 }
             } catch {
                 fputs("Sagasu window hotkey registration failed for keyCode \(keyCode): \(error.localizedDescription)\n", stderr)
@@ -286,18 +293,46 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
-    private func performWindowManagement(_ command: WindowManager.Command) {
+    private func configureDebugWindowCommandsIfNeeded() {
+        guard ProcessInfo.processInfo.environment["SAGASU_WINDOW_DEBUG"] == "1" else { return }
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleDebugWindowCommand(_:)),
+            name: debugWindowCommandNotification,
+            object: nil,
+            suspensionBehavior: .deliverImmediately
+        )
+        WindowManager.debugLog("debug window command notification enabled name=\(debugWindowCommandNotification.rawValue)")
+    }
+
+    @objc private func handleDebugWindowCommand(_ notification: Notification) {
+        guard let commandName = notification.userInfo?["command"] as? String,
+              let command = WindowManager.Command.fromDebugName(commandName) else {
+            WindowManager.debugLog("debug notification ignored userInfo=\(String(describing: notification.userInfo))")
+            return
+        }
+        performWindowManagement(command, source: "debug")
+    }
+
+    private func performWindowManagement(_ command: WindowManager.Command, source: String) {
         let now = Date()
         if lastWindowCommand == command,
+           lastWindowCommandSource != source,
            now.timeIntervalSince(lastWindowCommandAt) < 0.08 {
+            WindowManager.debugLog("debounced duplicate source=\(source) command=\(command.debugName) sinceLastCompletionMs=\(Int((now.timeIntervalSince(lastWindowCommandAt) * 1000).rounded()))")
             return
         }
 
-        lastWindowCommand = command
-        lastWindowCommandAt = now
+        WindowManager.debugLog("dispatch source=\(source) command=\(command.debugName) time=\(now.timeIntervalSince1970)")
+        let startedAt = Date()
         do {
             try windowManager.perform(command)
+            lastWindowCommand = command
+            lastWindowCommandAt = Date()
+            lastWindowCommandSource = source
+            WindowManager.debugLog("dispatch complete source=\(source) command=\(command.debugName) elapsedMs=\(Int((Date().timeIntervalSince(startedAt) * 1000).rounded()))")
         } catch {
+            WindowManager.debugLog("dispatch failed source=\(source) command=\(command.debugName) error=\(error.localizedDescription) elapsedMs=\(Int((Date().timeIntervalSince(startedAt) * 1000).rounded()))")
             presentWindowManagement(error: error)
         }
     }
@@ -308,6 +343,10 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
             didPresentAccessibilityPermissionError = true
             WindowManager.openAccessibilitySettings()
             NSApp.presentError(error)
+            return
+        }
+
+        if case LauncherError.windowManagementFailed = error {
             return
         }
 

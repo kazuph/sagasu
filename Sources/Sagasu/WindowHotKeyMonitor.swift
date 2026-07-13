@@ -4,6 +4,7 @@ import Foundation
 
 final class WindowHotKeyMonitor {
     nonisolated(unsafe) private static var handler: ((WindowManager.Command) -> Void)?
+    nonisolated(unsafe) private static var activeEventTap: CFMachPort?
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -24,6 +25,7 @@ final class WindowHotKeyMonitor {
         }
 
         self.eventTap = eventTap
+        Self.activeEventTap = eventTap
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         self.runLoopSource = runLoopSource
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -37,6 +39,7 @@ final class WindowHotKeyMonitor {
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
+        Self.activeEventTap = nil
         Self.handler = nil
     }
 
@@ -69,6 +72,14 @@ final class WindowHotKeyMonitor {
     }
 
     private static let handleEventTap: CGEventTapCallBack = { _, type, event, _ in
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let eventTap = activeEventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            WindowManager.debugLog("eventTap re-enabled type=\(type.rawValue)")
+            return Unmanaged.passUnretained(event)
+        }
+
         guard type == .keyDown else {
             return Unmanaged.passUnretained(event)
         }

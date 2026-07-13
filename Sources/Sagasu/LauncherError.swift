@@ -9,6 +9,7 @@ enum LauncherError: LocalizedError {
     case clipboardWriteFailed
     case herdrUnavailable
     case hotKeyRegistrationFailed(OSStatus)
+    case windowManagementFailed(String)
     case notesAutomationFailed(String)
     case commandFailed(executable: String, message: String)
     case snapshotFailed(String)
@@ -33,6 +34,8 @@ enum LauncherError: LocalizedError {
             return "Herdr is not available at ~/.local/bin/herdr, /opt/homebrew/bin/herdr, or /usr/local/bin/herdr."
         case .hotKeyRegistrationFailed(let status):
             return "Global hotkey registration failed with status \(status)."
+        case .windowManagementFailed(let message):
+            return "Window management failed: \(message)"
         case .notesAutomationFailed(let message):
             return "Notes search failed: \(message)"
         case .commandFailed(let executable, let message):

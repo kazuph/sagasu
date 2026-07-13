@@ -195,3 +195,132 @@ func windowHotKeyMonitorMapsHLIWithoutMixingCommands() {
     #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_L), flags: flags) == .rightHalf)
     #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_I), flags: flags) == .centerThird)
 }
+
+@MainActor
+@Test
+func windowCommandDebugNamesRoundTrip() {
+    let commands: [WindowManager.Command] = [
+        .bottomHalf,
+        .centerThird,
+        .leftHalf,
+        .maximize,
+        .nextDisplay,
+        .previousDisplay,
+        .rightHalf,
+        .topHalf
+    ]
+
+    for command in commands {
+        #expect(WindowManager.Command.fromDebugName(command.debugName) == command)
+    }
+}
+
+@MainActor
+@Test
+func windowCommandDebugNamesRejectUnknownValues() {
+    #expect(WindowManager.Command.fromDebugName("") == nil)
+    #expect(WindowManager.Command.fromDebugName("left") == nil)
+}
+
+@MainActor
+@Test
+func chromeEnhancedUserInterfaceGuardOnlyDisablesWhenOriginalValueIsTrue() {
+    #expect(WindowManager.enhancedUserInterfaceGuardPlan(originalValue: true).shouldDisableBeforeOperation)
+    #expect(WindowManager.enhancedUserInterfaceGuardPlan(originalValue: false).shouldDisableBeforeOperation == false)
+    #expect(WindowManager.enhancedUserInterfaceGuardPlan(originalValue: nil).shouldDisableBeforeOperation == false)
+}
+
+@MainActor
+@Test
+func chromeEnhancedUserInterfaceRestoreRequiresOriginalTrueAndDisableSuccess() {
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: true, disableSucceeded: true))
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: true, disableSucceeded: false) == false)
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: false, disableSucceeded: true) == false)
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: nil, disableSucceeded: true) == false)
+}
+
+@MainActor
+@Test
+func chromeReadbackResultSeparatesMatchMismatchAndMissingReadback() {
+    let target = CGRect(x: 10, y: 20, width: 300, height: 400)
+    let withinTolerance = CGRect(x: 14, y: 24, width: 304, height: 396)
+    let outsideTolerance = CGRect(x: 17, y: 20, width: 300, height: 400)
+
+    #expect(
+        WindowManager.chromeReadbackResult(
+            targetFrame: target,
+            actualFrame: withinTolerance
+        ) == .matched(withinTolerance)
+    )
+    #expect(
+        WindowManager.chromeReadbackResult(
+            targetFrame: target,
+            actualFrame: outsideTolerance
+        ) == .mismatch(outsideTolerance)
+    )
+    #expect(
+        WindowManager.chromeReadbackResult(
+            targetFrame: target,
+            actualFrame: nil
+        ) == .mismatch(nil)
+    )
+}
+
+@MainActor
+@Test
+func chromeReadbackResultAcceptsAnchoredMinimumSizeClamp() {
+    let bottomTarget = CGRect(x: -589, y: -1790, width: 2560, height: 350)
+    let bottomActual = CGRect(x: -589, y: -1909, width: 2560, height: 469)
+    let rightTarget = CGRect(x: 691, y: -2489, width: 1280, height: 1049)
+    let rightActual = CGRect(x: 491, y: -2489, width: 1480, height: 1049)
+
+    #expect(
+        WindowManager.chromeReadbackResult(
+            targetFrame: bottomTarget,
+            actualFrame: bottomActual,
+            anchor: .bottom
+        ) == .clamped(bottomActual)
+    )
+    #expect(
+        WindowManager.chromeReadbackResult(
+            targetFrame: rightTarget,
+            actualFrame: rightActual,
+            anchor: .right
+        ) == .clamped(rightActual)
+    )
+    #expect(
+        WindowManager.chromeReadbackResult(
+            targetFrame: bottomTarget,
+            actualFrame: bottomActual,
+            anchor: nil
+        ) == .mismatch(bottomActual)
+    )
+}
+
+@MainActor
+@Test
+func chromeCorrectionOriginUsesMeasuredSizeForRightAndBottomAnchors() {
+    let target = CGRect(x: 100, y: 200, width: 300, height: 400)
+
+    #expect(
+        WindowManager.correctionOrigin(
+            targetFrame: target,
+            measuredSize: CGSize(width: 360, height: 400),
+            anchor: .right
+        ) == CGPoint(x: 40, y: 200)
+    )
+    #expect(
+        WindowManager.correctionOrigin(
+            targetFrame: target,
+            measuredSize: CGSize(width: 300, height: 480),
+            anchor: .bottom
+        ) == CGPoint(x: 100, y: 120)
+    )
+    #expect(
+        WindowManager.correctionOrigin(
+            targetFrame: target,
+            measuredSize: CGSize(width: 360, height: 480),
+            anchor: nil
+        ) == target.origin
+    )
+}
