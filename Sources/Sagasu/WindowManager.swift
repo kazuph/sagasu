@@ -72,6 +72,7 @@ struct WindowManager {
     private static let enhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
     private static let chromeSettleRetryCount = 3
     private static let chromeSettleRetryDelayMicroseconds: useconds_t = 60_000
+    private static let finderBundleIdentifier = "com.apple.finder"
     private static var cycleStates: [CycleKey: CycleState] = [:]
 
     enum Command: Equatable {
@@ -332,7 +333,13 @@ struct WindowManager {
         if let focused = copyWindowAttribute(kAXFocusedWindowAttribute, from: appElement) {
             return focused
         }
-        return copyWindowAttribute(kAXMainWindowAttribute, from: appElement)
+        if let main = copyWindowAttribute(kAXMainWindowAttribute, from: appElement) {
+            return main
+        }
+        if Self.isFinderBundleIdentifier(application.bundleIdentifier) {
+            return firstStandardWindow(from: appElement)
+        }
+        return nil
     }
 
     private func frame(of window: AXUIElement) -> CGRect? {
@@ -401,6 +408,10 @@ struct WindowManager {
             try setChromeFrame(frame, anchor: anchor, for: window, application: application)
             return
         }
+        if Self.isFinderBundleIdentifier(application.bundleIdentifier) {
+            try setFinderFrame(frame, for: window)
+            return
+        }
 
         try set(frame: frame, anchor: anchor, for: window)
     }
@@ -452,6 +463,17 @@ struct WindowManager {
             Self.debugLog("chrome final readback mismatch target=\(frame) actual=\(String(describing: actualFrame))")
             throw LauncherError.windowManagementFailed("Chrome did not reach the requested position and size.")
         }
+    }
+
+    private func setFinderFrame(_ frame: CGRect, for window: AXUIElement) throws {
+        Self.debugLog("finder before=\(String(describing: self.frame(of: window))) target=\(frame)")
+        try setPosition(frame.origin, for: window)
+        try setSize(frame.size, for: window)
+        Self.debugLog("finder after=\(String(describing: self.frame(of: window)))")
+    }
+
+    static func isFinderBundleIdentifier(_ bundleIdentifier: String?) -> Bool {
+        bundleIdentifier == finderBundleIdentifier
     }
 
     private func settleChromeReadback(
@@ -692,6 +714,31 @@ struct WindowManager {
             return nil
         }
         return (value as! AXUIElement)
+    }
+
+    private func copyWindowsAttribute(from element: AXUIElement) -> [AXUIElement] {
+        guard let value = copyAttribute(kAXWindowsAttribute, from: element),
+              CFGetTypeID(value) == CFArrayGetTypeID() else {
+            return []
+        }
+        return (value as? [AXUIElement]) ?? []
+    }
+
+    private func firstStandardWindow(from appElement: AXUIElement) -> AXUIElement? {
+        copyWindowsAttribute(from: appElement).first { window in
+            copyStringAttribute(kAXRoleAttribute, from: window) == (kAXWindowRole as String) &&
+                copyStringAttribute(kAXSubroleAttribute, from: window) == (kAXStandardWindowSubrole as String) &&
+                copyBooleanAttribute(kAXMinimizedAttribute, from: window) != true &&
+                frame(of: window) != nil
+        }
+    }
+
+    private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {
+        copyAttribute(attribute, from: element) as? String
+    }
+
+    private func copyBooleanAttribute(_ attribute: String, from element: AXUIElement) -> Bool? {
+        copyAttribute(attribute, from: element) as? Bool
     }
 
     private func copyValueAttribute(_ attribute: String, from element: AXUIElement) -> AXValue? {

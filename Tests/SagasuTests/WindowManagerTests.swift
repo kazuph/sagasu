@@ -324,3 +324,11 @@ func chromeCorrectionOriginUsesMeasuredSizeForRightAndBottomAnchors() {
         ) == target.origin
     )
 }
+
+@MainActor
+@Test
+func finderBundleIdentifierIsRecognizedWithoutMatchingOtherApps() {
+    #expect(WindowManager.isFinderBundleIdentifier("com.apple.finder"))
+    #expect(WindowManager.isFinderBundleIdentifier("com.google.Chrome") == false)
+    #expect(WindowManager.isFinderBundleIdentifier(nil) == false)
+}
