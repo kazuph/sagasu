@@ -59,6 +59,13 @@ struct WindowManager {
         }
     }
 
+    struct FinderBounds: Equatable {
+        let left: Int
+        let top: Int
+        let right: Int
+        let bottom: Int
+    }
+
     private static let cycle: [CGFloat] = [
         1.0 / 2.0,
         1.0 / 3.0,
@@ -73,6 +80,7 @@ struct WindowManager {
     private static let chromeSettleRetryCount = 3
     private static let chromeSettleRetryDelayMicroseconds: useconds_t = 60_000
     private static let finderBundleIdentifier = "com.apple.finder"
+    private static let finderSettleAttemptCount = 3
     private static var cycleStates: [CycleKey: CycleState] = [:]
 
     enum Command: Equatable {
@@ -326,6 +334,10 @@ struct WindowManager {
 
     private func focusedWindow(for application: NSRunningApplication) -> AXUIElement? {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
+        if Self.isFinderBundleIdentifier(application.bundleIdentifier),
+           let finderWindow = firstStandardWindow(from: appElement) {
+            return finderWindow
+        }
         if application.bundleIdentifier == "com.google.Chrome",
            let main = copyWindowAttribute(kAXMainWindowAttribute, from: appElement) {
             return main
@@ -335,9 +347,6 @@ struct WindowManager {
         }
         if let main = copyWindowAttribute(kAXMainWindowAttribute, from: appElement) {
             return main
-        }
-        if Self.isFinderBundleIdentifier(application.bundleIdentifier) {
-            return firstStandardWindow(from: appElement)
         }
         return nil
     }
@@ -467,13 +476,84 @@ struct WindowManager {
 
     private func setFinderFrame(_ frame: CGRect, for window: AXUIElement) throws {
         Self.debugLog("finder before=\(String(describing: self.frame(of: window))) target=\(frame)")
-        try setPosition(frame.origin, for: window)
-        try setSize(frame.size, for: window)
-        Self.debugLog("finder after=\(String(describing: self.frame(of: window)))")
+        if trySetFinderBounds(frame, for: window) {
+            return
+        }
+
+        var lastFrame: CGRect?
+        for attempt in 1...Self.finderSettleAttemptCount {
+            try setSize(frame.size, for: window)
+            try setPosition(frame.origin, for: window)
+            try setSize(frame.size, for: window)
+            lastFrame = self.frame(of: window)
+            Self.debugLog("finder ax settle attempt=\(attempt) readback=\(String(describing: lastFrame))")
+            if Self.finderFrameSettled(targetFrame: frame, actualFrame: lastFrame) {
+                Self.debugLog("finder ax settled attempt=\(attempt) target=\(frame) actual=\(String(describing: lastFrame))")
+                return
+            }
+        }
+        Self.debugLog("finder ax not settled target=\(frame) actual=\(String(describing: lastFrame))")
+    }
+
+    private func trySetFinderBounds(_ frame: CGRect, for window: AXUIElement) -> Bool {
+        let bounds = Self.finderBounds(for: frame)
+        let source = """
+        tell application "Finder"
+            set bounds of front Finder window to {\(bounds.left), \(bounds.top), \(bounds.right), \(bounds.bottom)}
+        end tell
+        """
+        let process = Process()
+        let stderr = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", source]
+        process.standardError = stderr
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            Self.debugLog("finder bounds process failed bounds=\(bounds) error=\(error)")
+            return false
+        }
+
+        if process.terminationStatus != 0 {
+            let data = stderr.fileHandleForReading.readDataToEndOfFile()
+            let message = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            Self.debugLog("finder bounds failed bounds=\(bounds) status=\(process.terminationStatus) stderr=\(message)")
+            return false
+        }
+
+        let actualFrame = self.frame(of: window)
+        Self.debugLog("finder bounds applied bounds=\(bounds) readback=\(String(describing: actualFrame))")
+        if Self.finderFrameSettled(targetFrame: frame, actualFrame: actualFrame) == false {
+            Self.debugLog("finder bounds mismatch target=\(frame) actual=\(String(describing: actualFrame))")
+            return false
+        }
+        return true
     }
 
     static func isFinderBundleIdentifier(_ bundleIdentifier: String?) -> Bool {
         bundleIdentifier == finderBundleIdentifier
+    }
+
+    static func finderBounds(for frame: CGRect) -> FinderBounds {
+        FinderBounds(
+            left: Int(frame.minX.rounded()),
+            top: Int(frame.minY.rounded()),
+            right: Int(frame.maxX.rounded()),
+            bottom: Int(frame.maxY.rounded())
+        )
+    }
+
+    static func finderFrameSettled(targetFrame: CGRect, actualFrame: CGRect?) -> Bool {
+        guard let actualFrame else { return false }
+        if framesMatch(actualFrame, targetFrame, tolerance: 6) {
+            return true
+        }
+        return abs(actualFrame.minX - targetFrame.minX) <= 6
+            && abs(actualFrame.minY - targetFrame.minY) <= 6
+            && actualFrame.width >= targetFrame.width - 6
+            && actualFrame.height >= targetFrame.height - 6
     }
 
     private func settleChromeReadback(

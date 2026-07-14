@@ -332,3 +332,48 @@ func finderBundleIdentifierIsRecognizedWithoutMatchingOtherApps() {
     #expect(WindowManager.isFinderBundleIdentifier("com.google.Chrome") == false)
     #expect(WindowManager.isFinderBundleIdentifier(nil) == false)
 }
+
+@MainActor
+@Test
+func finderBoundsUsesFrameEdgesForAppleScriptBounds() {
+    #expect(
+        WindowManager.finderBounds(
+            for: CGRect(x: 1971, y: -1945, width: 1920, height: 1049)
+        ) == WindowManager.FinderBounds(
+            left: 1971,
+            top: -1945,
+            right: 3891,
+            bottom: -896
+        )
+    )
+}
+
+@MainActor
+@Test
+func finderFrameSettledAcceptsMinimumSizeClampOnlyAfterOriginMatches() {
+    let target = CGRect(x: 2333, y: -1186, width: 486, height: 208)
+
+    #expect(
+        WindowManager.finderFrameSettled(
+            targetFrame: target,
+            actualFrame: CGRect(x: 2333, y: -1186, width: 495, height: 280)
+        )
+    )
+    #expect(
+        WindowManager.finderFrameSettled(
+            targetFrame: target,
+            actualFrame: CGRect(x: -106, y: -390, width: 495, height: 280)
+        ) == false
+    )
+}
+
+@MainActor
+@Test
+func finderFrameSettledRejectsMaximizeWhenFinderKeptOldWidth() {
+    #expect(
+        WindowManager.finderFrameSettled(
+            targetFrame: CGRect(x: 1971, y: -1945, width: 1920, height: 1049),
+            actualFrame: CGRect(x: 1971, y: -1945, width: 621, height: 1049)
+        ) == false
+    )
+}
