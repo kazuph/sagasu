@@ -1,3 +1,4 @@
+import ApplicationServices
 import Foundation
 import Carbon
 import Testing
@@ -323,6 +324,72 @@ func chromeCorrectionOriginUsesMeasuredSizeForRightAndBottomAnchors() {
             anchor: nil
         ) == target.origin
     )
+}
+
+@MainActor
+@Test
+func frameApplyOutcomeSettlesWhenReadbackMatchesDespiteTransientErrors() {
+    let target = CGRect(x: 0, y: 40, width: 1710, height: 1072)
+
+    #expect(
+        WindowManager.frameApplyOutcome(
+            targetFrame: target,
+            actualFrame: CGRect(x: 0, y: 40, width: 1710, height: 1072),
+            stepStatuses: [.success, .success, .attributeUnsupported, .success]
+        ) == .settled
+    )
+}
+
+@MainActor
+@Test
+func frameApplyOutcomeRetriesWhenStepFailedAndReadbackDiffers() {
+    let target = CGRect(x: 0, y: 40, width: 1710, height: 1072)
+
+    #expect(
+        WindowManager.frameApplyOutcome(
+            targetFrame: target,
+            actualFrame: CGRect(x: 30, y: -1019, width: 1680, height: 1019),
+            stepStatuses: [.attributeUnsupported, .success, .success, .success]
+        ) == .retry(.attributeUnsupported)
+    )
+}
+
+@MainActor
+@Test
+func frameApplyOutcomeTrustsSuccessfulStepsWhenAppClampsFrame() {
+    let target = CGRect(x: 0, y: 40, width: 1710, height: 1072)
+
+    #expect(
+        WindowManager.frameApplyOutcome(
+            targetFrame: target,
+            actualFrame: CGRect(x: 0, y: 40, width: 1690, height: 1050),
+            stepStatuses: [.success, .success, .success, .success]
+        ) == .applied
+    )
+    #expect(
+        WindowManager.frameApplyOutcome(
+            targetFrame: target,
+            actualFrame: nil,
+            stepStatuses: [.success, .success, .success, .success]
+        ) == .applied
+    )
+}
+
+@MainActor
+@Test
+func windowOperationFailureRequiresPermissionOnlyWhenUntrusted() {
+    let untrusted = WindowManager.windowOperationFailure(status: .attributeUnsupported, isTrusted: false)
+    guard case .accessibilityPermissionRequired = untrusted else {
+        Issue.record("expected accessibilityPermissionRequired, got \(untrusted)")
+        return
+    }
+
+    let trusted = WindowManager.windowOperationFailure(status: .attributeUnsupported, isTrusted: true)
+    guard case .windowManagementFailed(let message) = trusted else {
+        Issue.record("expected windowManagementFailed, got \(trusted)")
+        return
+    }
+    #expect(message.contains("-25205"))
 }
 
 @MainActor

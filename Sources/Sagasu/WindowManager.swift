@@ -59,6 +59,12 @@ struct WindowManager {
         }
     }
 
+    enum FrameApplyOutcome: Equatable {
+        case settled
+        case applied
+        case retry(AXError)
+    }
+
     struct FinderBounds: Equatable {
         let left: Int
         let top: Int
@@ -79,6 +85,9 @@ struct WindowManager {
     private static let enhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
     private static let chromeSettleRetryCount = 3
     private static let chromeSettleRetryDelayMicroseconds: useconds_t = 60_000
+    private static let frameSettleAttemptCount = 3
+    private static let frameSettleRetryDelayMicroseconds: useconds_t = 60_000
+    private static let frameSettleTolerance: CGFloat = 6
     private static let finderBundleIdentifier = "com.apple.finder"
     private static let finderSettleAttemptCount = 3
     private static var cycleStates: [CycleKey: CycleState] = [:]
@@ -367,14 +376,59 @@ struct WindowManager {
     }
 
     private func set(frame: CGRect, for window: AXUIElement) throws {
-        try setSize(frame.size, for: window)
-        _ = self.frame(of: window)
-        try setPosition(frame.origin, for: window)
-        _ = self.frame(of: window)
-        try setSize(frame.size, for: window)
-        _ = self.frame(of: window)
-        try setPosition(frame.origin, for: window)
-        _ = self.frame(of: window)
+        var lastFailure = AXError.success
+        for attempt in 1...Self.frameSettleAttemptCount {
+            if attempt > 1 {
+                usleep(Self.frameSettleRetryDelayMicroseconds)
+            }
+            var statuses: [AXError] = []
+            statuses.append(applySize(frame.size, to: window))
+            _ = self.frame(of: window)
+            statuses.append(applyPosition(frame.origin, to: window))
+            _ = self.frame(of: window)
+            statuses.append(applySize(frame.size, to: window))
+            _ = self.frame(of: window)
+            statuses.append(applyPosition(frame.origin, to: window))
+            let actualFrame = self.frame(of: window)
+
+            switch Self.frameApplyOutcome(targetFrame: frame, actualFrame: actualFrame, stepStatuses: statuses) {
+            case .settled:
+                Self.debugLog("ax set frame settled attempt=\(attempt) target=\(frame) actual=\(String(describing: actualFrame))")
+                return
+            case .applied:
+                Self.debugLog("ax set frame applied attempt=\(attempt) target=\(frame) readback=\(String(describing: actualFrame))")
+                return
+            case .retry(let failure):
+                lastFailure = failure
+                Self.debugLog("ax set frame retry attempt=\(attempt) status=\(failure.rawValue) readback=\(String(describing: actualFrame))")
+            }
+        }
+        throw Self.windowOperationFailure(status: lastFailure)
+    }
+
+    static func frameApplyOutcome(
+        targetFrame: CGRect,
+        actualFrame: CGRect?,
+        stepStatuses: [AXError]
+    ) -> FrameApplyOutcome {
+        if let actualFrame, framesMatch(actualFrame, targetFrame, tolerance: frameSettleTolerance) {
+            return .settled
+        }
+        if let failure = stepStatuses.first(where: { $0 != .success }) {
+            return .retry(failure)
+        }
+        return .applied
+    }
+
+    static func windowOperationFailure(status: AXError, isTrusted: Bool) -> LauncherError {
+        guard isTrusted else {
+            return .accessibilityPermissionRequired
+        }
+        return .windowManagementFailed("Window frame update failed with accessibility status \(status.rawValue).")
+    }
+
+    private static func windowOperationFailure(status: AXError) -> LauncherError {
+        windowOperationFailure(status: status, isTrusted: isAccessibilityTrusted)
     }
 
     private func set(frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) throws {
@@ -386,11 +440,11 @@ struct WindowManager {
         let currentFrame = self.frame(of: window)
         switch anchor {
         case .right where (currentFrame?.width ?? frame.width) < frame.width:
-            try setPosition(CGPoint(x: frame.maxX - (currentFrame?.width ?? frame.width), y: frame.minY), for: window)
+            applyPosition(CGPoint(x: frame.maxX - (currentFrame?.width ?? frame.width), y: frame.minY), to: window)
             _ = self.frame(of: window)
             try set(frame: frame, for: window)
         case .bottom where (currentFrame?.height ?? frame.height) < frame.height:
-            try setPosition(CGPoint(x: frame.minX, y: frame.maxY - (currentFrame?.height ?? frame.height)), for: window)
+            applyPosition(CGPoint(x: frame.minX, y: frame.maxY - (currentFrame?.height ?? frame.height)), to: window)
             _ = self.frame(of: window)
             try set(frame: frame, for: window)
         default:
@@ -726,23 +780,35 @@ struct WindowManager {
     }
 
     private func setPosition(_ position: CGPoint, for window: AXUIElement) throws {
-        var position = position
-        guard let value = AXValueCreate(.cgPoint, &position) else { return }
-        let status = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
-        Self.debugLog("ax setPosition value=\(position) status=\(status.rawValue)")
+        let status = applyPosition(position, to: window)
         if status != .success {
-            throw LauncherError.accessibilityPermissionRequired
+            throw Self.windowOperationFailure(status: status)
         }
     }
 
     private func setSize(_ size: CGSize, for window: AXUIElement) throws {
+        let status = applySize(size, to: window)
+        if status != .success {
+            throw Self.windowOperationFailure(status: status)
+        }
+    }
+
+    @discardableResult
+    private func applyPosition(_ position: CGPoint, to window: AXUIElement) -> AXError {
+        var position = position
+        guard let value = AXValueCreate(.cgPoint, &position) else { return .failure }
+        let status = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
+        Self.debugLog("ax setPosition value=\(position) status=\(status.rawValue)")
+        return status
+    }
+
+    @discardableResult
+    private func applySize(_ size: CGSize, to window: AXUIElement) -> AXError {
         var size = size
-        guard let value = AXValueCreate(.cgSize, &size) else { return }
+        guard let value = AXValueCreate(.cgSize, &size) else { return .failure }
         let status = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
         Self.debugLog("ax setSize value=\(size) status=\(status.rawValue)")
-        if status != .success {
-            throw LauncherError.accessibilityPermissionRequired
-        }
+        return status
     }
 
     private func alignActualFrame(to targetFrame: CGRect, anchor: FrameAnchor, for window: AXUIElement) throws {
@@ -772,9 +838,9 @@ struct WindowManager {
         let integralFrame = Self.pixelAlignedFrame(actualFrame)
         switch anchor {
         case .right, .bottom:
-            try setPosition(integralFrame.origin, for: window)
+            applyPosition(integralFrame.origin, to: window)
             _ = self.frame(of: window)
-            try setSize(integralFrame.size, for: window)
+            applySize(integralFrame.size, to: window)
             _ = self.frame(of: window)
         case .left, .top:
             try set(frame: integralFrame, for: window)
