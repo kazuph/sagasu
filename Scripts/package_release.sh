@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
-version="${1:-${GITHUB_REF_NAME:-1.0.2}}"
+version="${1:-${GITHUB_REF_NAME:-1.0.3}}"
 version="${version#v}"
 dist_dir="$repo_dir/dist"
 app_path="$dist_dir/Sagasu.app"
@@ -13,7 +13,12 @@ dmg_root="$release_dir/dmg-root"
 /bin/mkdir -p "$release_dir"
 trap '/bin/rm -rf "$dmg_root"' EXIT
 
-SAGASU_VERSION="$version" "$repo_dir/Scripts/build_app.sh" >/dev/null
+if [[ "${SAGASU_SKIP_BUILD:-0}" != "1" ]]; then
+  SAGASU_VERSION="$version" "$repo_dir/Scripts/build_app.sh" >/dev/null
+elif [[ ! -d "$app_path" ]]; then
+  printf 'SAGASU_SKIP_BUILD=1 requires an existing app at %s\n' "$app_path" >&2
+  exit 1
+fi
 
 zip_path="$release_dir/Sagasu-${version}.zip"
 dmg_path="$release_dir/Sagasu-${version}.dmg"

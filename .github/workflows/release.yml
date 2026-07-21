@@ -1,0 +1,91 @@
+name: Release Sagasu
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Run tests
+        run: swift test
+
+      - name: Import Developer ID signing certificate
+        shell: bash
+        env:
+          SAGASU_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SAGASU_SIGNING_CERTIFICATE_BASE64 }}
+          SAGASU_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SAGASU_SIGNING_CERTIFICATE_PASSWORD }}
+          SAGASU_KEYCHAIN_PASSWORD: ${{ secrets.SAGASU_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/sagasu-signing-certificate.p12"
+          keychain_path="$RUNNER_TEMP/sagasu-signing.keychain-db"
+          trap 'rm -f "$certificate_path"' EXIT
+          printf '%s' "$SAGASU_SIGNING_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$SAGASU_KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$SAGASU_KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$SAGASU_SIGNING_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$SAGASU_KEYCHAIN_PASSWORD" "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+
+      - name: Build, notarize, and package
+        shell: bash
+        env:
+          SAGASU_DISTRIBUTION_BUILD: "1"
+          SAGASU_CODE_SIGN_IDENTITY: "Developer ID Application: Kazuhiro Homma (67M8FDFZ28)"
+          SAGASU_NOTARY_KEY_BASE64: ${{ secrets.SAGASU_NOTARY_KEY_BASE64 }}
+          SAGASU_NOTARY_KEY_ID: ${{ secrets.SAGASU_NOTARY_KEY_ID }}
+          SAGASU_NOTARY_ISSUER_ID: ${{ secrets.SAGASU_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          notary_key_path="$RUNNER_TEMP/AuthKey_${SAGASU_NOTARY_KEY_ID}.p8"
+          trap 'rm -f "$notary_key_path"' EXIT
+          printf '%s' "$SAGASU_NOTARY_KEY_BASE64" | base64 --decode > "$notary_key_path"
+          chmod 600 "$notary_key_path"
+          release_version="${GITHUB_REF_NAME#v}"
+          SAGASU_VERSION="$release_version" Scripts/build_app.sh
+          SAGASU_NOTARY_KEY_PATH="$notary_key_path" Scripts/notarize_app.sh
+          SAGASU_SKIP_BUILD=1 Scripts/package_release.sh "$GITHUB_REF_NAME"
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_dir="$(mktemp -d "$RUNNER_TEMP/sagasu-artifacts.XXXXXX")"
+          zip_dir="$artifact_dir/zip"
+          dmg_mount="$artifact_dir/dmg"
+          cleanup() {
+            hdiutil detach "$dmg_mount" -quiet >/dev/null 2>&1 || true
+            rm -rf "$artifact_dir"
+          }
+          trap cleanup EXIT
+          mkdir -p "$zip_dir" "$dmg_mount"
+          (
+            cd dist/release
+            shasum -a 256 -c checksums.txt
+          )
+          ditto -x -k "dist/release/Sagasu-${GITHUB_REF_NAME#v}.zip" "$zip_dir"
+          hdiutil attach -readonly -nobrowse -mountpoint "$dmg_mount" "dist/release/Sagasu-${GITHUB_REF_NAME#v}.dmg" >/dev/null
+          for app_path in "$zip_dir/Sagasu.app" "$dmg_mount/Sagasu.app"; do
+            codesign --verify --deep --strict --verbose=2 "$app_path"
+            spctl --assess --type execute --verbose=4 "$app_path"
+            xcrun stapler validate "$app_path"
+            archs="$(lipo -archs "$app_path/Contents/MacOS/Sagasu")"
+            case " $archs " in
+              *" arm64 "*) ;;
+              *) printf 'arm64 is missing from %s: %s\n' "$app_path" "$archs" >&2; exit 1 ;;
+            esac
+          done
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/release/Sagasu-*.zip dist/release/Sagasu-*.dmg dist/release/checksums.txt --generate-notes

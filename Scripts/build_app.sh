@@ -10,7 +10,8 @@ macos_dir="$contents_dir/MacOS"
 resources_dir="$contents_dir/Resources"
 entitlements_path="$repo_dir/Packaging/Sagasu.entitlements"
 identity="${SAGASU_CODE_SIGN_IDENTITY:-${CODESIGN_IDENTITY:-Apple Development: Kazuhiro Homma (283LEN7F9Y)}}"
-version="${SAGASU_VERSION:-1.0.2}"
+version="${SAGASU_VERSION:-1.0.3}"
+distribution_build="${SAGASU_DISTRIBUTION_BUILD:-0}"
 
 codesign_identity_available() {
   /usr/bin/security find-identity -v -p codesigning | /usr/bin/grep -Fq "\"$identity\""
@@ -18,6 +19,28 @@ codesign_identity_available() {
 
 codesign_app() {
   local sign_target="$1"
+
+  if [[ "$distribution_build" == "1" ]]; then
+    if [[ "$identity" != "Developer ID Application:"* ]]; then
+      printf 'distribution build requires a Developer ID Application identity, got: %s\n' "$identity" >&2
+      exit 1
+    fi
+
+    if ! codesign_identity_available; then
+      printf 'required Developer ID Application identity is unavailable: %s\n' "$identity" >&2
+      exit 1
+    fi
+
+    /usr/bin/codesign \
+      --force \
+      --deep \
+      --options runtime \
+      --timestamp \
+      --entitlements "$entitlements_path" \
+      --sign "$identity" \
+      "$sign_target"
+    return
+  fi
 
   if codesign_identity_available; then
     /usr/bin/codesign \

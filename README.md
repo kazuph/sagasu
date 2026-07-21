@@ -2,6 +2,16 @@
 
 Sagasu is a small macOS launcher for applications, files, Apple Notes, web routes, and clipboard history.
 
+## Installation
+
+```sh
+brew install --cask kazuph/tap/sagasu
+```
+
+After installation, open Sagasu and grant it access in System Settings >
+Privacy & Security > Accessibility so the launcher and window-management
+shortcuts can control other apps.
+
 ## Launching
 
 - Press `Command-Space` to open or close Sagasu.
@@ -79,3 +89,29 @@ make package
 copies that signed app to `~/Applications/Sagasu.app` and launches it. `make
 package` creates `Sagasu-<version>.zip`, `Sagasu-<version>.dmg`, and
 `checksums.txt` under `dist/release`.
+
+## Release CI
+
+Pushing a tag that starts with `v` runs `.github/workflows/release.yml`. The
+workflow runs `swift test`, imports a Developer ID Application certificate into
+an ephemeral runner keychain, signs with Hardened Runtime and a secure
+timestamp, notarizes and staples `Sagasu.app`, then verifies the app and
+publishes its ZIP, DMG, and SHA-256 checksums as a GitHub Release.
+
+Before the first tag release, a repository manager must configure these GitHub
+Actions Secrets. Their values are never committed to this repository.
+
+| Secret | Value |
+| --- | --- |
+| `SAGASU_SIGNING_CERTIFICATE_BASE64` | Base64-encoded Developer ID Application `.p12` |
+| `SAGASU_SIGNING_CERTIFICATE_PASSWORD` | Password for that `.p12` |
+| `SAGASU_KEYCHAIN_PASSWORD` | Password used only for the ephemeral CI keychain |
+| `SAGASU_NOTARY_KEY_BASE64` | Base64-encoded App Store Connect API key `.p8` |
+| `SAGASU_NOTARY_KEY_ID` | App Store Connect API Key ID |
+| `SAGASU_NOTARY_ISSUER_ID` | App Store Connect issuer ID |
+
+The workflow fails before publication when the Developer ID identity is not
+available. Local `make app` and `make install` keep their existing Apple
+Development signing path, so they continue to preserve the macOS Accessibility
+permission used during development. Updating `kazuph/homebrew-tap` after a
+release remains a manager-owned operation outside this repository.

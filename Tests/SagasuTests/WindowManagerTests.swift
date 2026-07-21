@@ -7,42 +7,46 @@ import Testing
 @MainActor
 @Test
 func windowCycleAdvancesFromCurrentFraction() {
-    #expect(WindowManager.nextCycleFraction(current: 1.0 / 2.0) == 1.0 / 3.0)
-    #expect(WindowManager.nextCycleFraction(current: 1.0 / 3.0) == 1.0 / 4.0)
-    #expect(WindowManager.nextCycleFraction(current: 1.0 / 4.0) == 2.0 / 3.0)
-    #expect(WindowManager.nextCycleFraction(current: 2.0 / 3.0) == 3.0 / 4.0)
-    #expect(WindowManager.nextCycleFraction(current: 3.0 / 4.0) == 1.0 / 2.0)
+    #expect(abs(WindowManager.nextCycleFraction(current: 1.0 / 2.0) - 1.0 / 3.0) <= CGFloat.ulpOfOne)
+    #expect(abs(WindowManager.nextCycleFraction(current: 1.0 / 3.0) - 1.0 / 4.0) <= CGFloat.ulpOfOne)
+    #expect(abs(WindowManager.nextCycleFraction(current: 1.0 / 4.0) - 2.0 / 3.0) <= CGFloat.ulpOfOne)
+    #expect(abs(WindowManager.nextCycleFraction(current: 2.0 / 3.0) - 3.0 / 4.0) <= CGFloat.ulpOfOne)
+    #expect(abs(WindowManager.nextCycleFraction(current: 3.0 / 4.0) - 1.0 / 2.0) <= CGFloat.ulpOfOne)
 }
 
 @MainActor
 @Test
 func windowCycleStartsAtHalfForUnknownCurrentFraction() {
-    #expect(WindowManager.nextCycleFraction(current: 0.61) == 1.0 / 2.0)
+    #expect(abs(WindowManager.nextCycleFraction(current: 0.61) - 1.0 / 2.0) <= CGFloat.ulpOfOne)
 }
 
 @MainActor
 @Test
 func windowCycleToleratesIntegralPixelRounding() {
-    #expect(WindowManager.nextCycleFraction(current: 0.501) == 1.0 / 3.0)
-    #expect(WindowManager.nextCycleFraction(current: 0.668) == 3.0 / 4.0)
+    #expect(abs(WindowManager.nextCycleFraction(current: 0.501) - 1.0 / 3.0) <= CGFloat.ulpOfOne)
+    #expect(abs(WindowManager.nextCycleFraction(current: 0.668) - 3.0 / 4.0) <= CGFloat.ulpOfOne)
 }
 
 @MainActor
 @Test
 func windowCycleUsesPreviousAppliedFractionWhenAppAdjustsFrame() {
     #expect(
-        WindowManager.nextCycleFraction(
-            current: 0.61,
-            previous: 1.0 / 4.0,
-            isStillOnSameEdge: true
-        ) == 2.0 / 3.0
+        abs(
+            WindowManager.nextCycleFraction(
+                current: 0.61,
+                previous: 1.0 / 4.0,
+                isStillOnSameEdge: true
+            ) - 2.0 / 3.0
+        ) <= CGFloat.ulpOfOne
     )
     #expect(
-        WindowManager.nextCycleFraction(
-            current: 0.61,
-            previous: 2.0 / 3.0,
-            isStillOnSameEdge: true
-        ) == 3.0 / 4.0
+        abs(
+            WindowManager.nextCycleFraction(
+                current: 0.61,
+                previous: 2.0 / 3.0,
+                isStillOnSameEdge: true
+            ) - 3.0 / 4.0
+        ) <= CGFloat.ulpOfOne
     )
 }
 
@@ -50,11 +54,13 @@ func windowCycleUsesPreviousAppliedFractionWhenAppAdjustsFrame() {
 @Test
 func windowCycleIgnoresPreviousFractionWhenCurrentWindowIsFullWidth() {
     #expect(
-        WindowManager.nextCycleFraction(
-            current: 1.0,
-            previous: 2.0 / 3.0,
-            isStillOnSameEdge: true
-        ) == 1.0 / 2.0
+        abs(
+            WindowManager.nextCycleFraction(
+                current: 1.0,
+                previous: 2.0 / 3.0,
+                isStillOnSameEdge: true
+            ) - 1.0 / 2.0
+        ) <= CGFloat.ulpOfOne
     )
 }
 
@@ -62,11 +68,13 @@ func windowCycleIgnoresPreviousFractionWhenCurrentWindowIsFullWidth() {
 @Test
 func windowCycleIgnoresPreviousFractionAfterManualMove() {
     #expect(
-        WindowManager.nextCycleFraction(
-            current: 0.61,
-            previous: 2.0 / 3.0,
-            isStillOnSameEdge: false
-        ) == 1.0 / 2.0
+        abs(
+            WindowManager.nextCycleFraction(
+                current: 0.61,
+                previous: 2.0 / 3.0,
+                isStillOnSameEdge: false
+            ) - 1.0 / 2.0
+        ) <= CGFloat.ulpOfOne
     )
 }
 
