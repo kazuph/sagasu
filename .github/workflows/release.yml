@@ -40,7 +40,7 @@ jobs:
         shell: bash
         env:
           SAGASU_DISTRIBUTION_BUILD: "1"
-          SAGASU_CODE_SIGN_IDENTITY: "Developer ID Application: Kazuhiro Homma (67M8FDFZ28)"
+          SAGASU_CODE_SIGN_IDENTITY: "Developer ID Application: KAZUHIRO HOMMA (67M8FDFZ28)"
           SAGASU_NOTARY_KEY_BASE64: ${{ secrets.SAGASU_NOTARY_KEY_BASE64 }}
           SAGASU_NOTARY_KEY_ID: ${{ secrets.SAGASU_NOTARY_KEY_ID }}
           SAGASU_NOTARY_ISSUER_ID: ${{ secrets.SAGASU_NOTARY_ISSUER_ID }}
