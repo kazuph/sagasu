@@ -2,6 +2,7 @@ import Foundation
 
 struct SearchEngine {
     private let applicationSearchService: ApplicationSearchService
+    private let macOSSettingsSearchService: MacOSSettingsSearchService
     private let fileSearchService: FileSearchService
     private let notesSearchService: NotesSearchService
     private let clipboardStore: ClipboardHistoryStore
@@ -15,6 +16,7 @@ struct SearchEngine {
 
     init(
         applicationSearchService: ApplicationSearchService = ApplicationSearchService(),
+        macOSSettingsSearchService: MacOSSettingsSearchService = MacOSSettingsSearchService(),
         fileSearchService: FileSearchService = FileSearchService(),
         notesSearchService: NotesSearchService = NotesSearchService(),
         webRouteSearchService: WebRouteSearchService = WebRouteSearchService(),
@@ -27,6 +29,7 @@ struct SearchEngine {
         usageHistoryStore: UsageHistoryStore = UsageHistoryStore()
     ) {
         self.applicationSearchService = applicationSearchService
+        self.macOSSettingsSearchService = macOSSettingsSearchService
         self.fileSearchService = fileSearchService
         self.notesSearchService = notesSearchService
         self.clipboardStore = clipboardStore
@@ -44,6 +47,7 @@ struct SearchEngine {
         switch parsedQuery.mode {
         case .applications:
             let additionalResults = clipboardImageTextService.searchResults(query: parsedQuery.query)
+                + (parsedQuery.query.isEmpty ? [] : macOSSettingsSearchService.results())
             let appResults = applicationSearchService.search(
                 query: parsedQuery.query,
                 usageHistoryStore: usageHistoryStore,

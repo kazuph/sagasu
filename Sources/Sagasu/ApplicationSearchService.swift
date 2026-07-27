@@ -67,7 +67,7 @@ struct ApplicationSearchService {
             } else if let matchedScore = SearchMatcher.score(
                 query: normalizedQuery,
                 primaryText: SearchMatcher.normalize(result.title),
-                secondaryText: SearchMatcher.normalize([result.subtitle, result.detail].joined(separator: " "))
+                secondaryText: SearchMatcher.normalize([result.subtitle, result.detail, result.searchTerms].joined(separator: " "))
             ) {
                 score = matchedScore
             } else {

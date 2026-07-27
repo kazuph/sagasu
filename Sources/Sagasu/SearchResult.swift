@@ -26,4 +26,21 @@ struct SearchResult: Hashable, Identifiable {
     let detail: String
     let visual: SearchResultVisual
     let action: SearchAction
+    let searchTerms: String
+
+    init(
+        title: String,
+        subtitle: String,
+        detail: String,
+        visual: SearchResultVisual,
+        action: SearchAction,
+        searchTerms: String = ""
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.detail = detail
+        self.visual = visual
+        self.action = action
+        self.searchTerms = searchTerms
+    }
 }
