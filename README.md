@@ -73,7 +73,7 @@ Sagasu includes fixed Raycast-style window management shortcuts. These do not cu
 The H/J/K/L commands cycle by inspecting the current window frame, not by counting rapid key presses. The cycle is `1/2 -> 1/3 -> 1/4 -> 2/3 -> 3/4 -> 1/2`.
 
 Window management uses macOS Accessibility. If the shortcuts do not move windows, grant Sagasu permission in System Settings > Privacy & Security > Accessibility.
-`Scripts/build-and-open-app.sh` signs Sagasu with a stable Apple Development identity when available so macOS can keep the Accessibility permission across rebuilds. If the app is ad-hoc signed, macOS may require removing and adding Sagasu again in Accessibility because the app's code signature changes.
+`Scripts/build-and-open-app.sh` keeps `/Applications/Sagasu.app` as the canonical local install and reuses its Developer ID Application identity on every update. It verifies a staged app before stopping Sagasu, keeps the previous app as a same-volume backup until the replacement succeeds, and never falls back to `~/Applications/Sagasu.app`. If a second copy exists under `~/Applications`, the install stops without changing either app; remove the duplicate before retrying. This keeps macOS Accessibility attached to one path and signing identity.
 If macOS opens the input source or Character Viewer popover when using Sagasu's launch shortcut, disable the conflicting macOS keyboard shortcuts for `Command-Space` and `Command-Shift-Space`.
 
 ## Development
@@ -85,8 +85,11 @@ make install
 make package
 ```
 
-`make app` builds a signed release app at `dist/Sagasu.app`. `make install`
-copies that signed app to `~/Applications/Sagasu.app` and launches it. `make
+`make app` builds a release-configuration app bundle at `dist/Sagasu.app`; outside the canonical installer, its signature follows the requested local identity and may be ad-hoc when that identity is unavailable. `make install`
+replaces `/Applications/Sagasu.app` with the same Developer ID Application
+identity and launches it. If no canonical app exists yet, set
+`SAGASU_CODE_SIGN_IDENTITY` to an available Developer ID Application identity;
+the install stops rather than using another path or signing identity. `make
 package` creates `Sagasu-<version>.zip`, `Sagasu-<version>.dmg`, and
 `checksums.txt` under `dist/release`.
 
@@ -111,7 +114,7 @@ Actions Secrets. Their values are never committed to this repository.
 | `SAGASU_NOTARY_ISSUER_ID` | App Store Connect issuer ID |
 
 The workflow fails before publication when the Developer ID identity is not
-available. Local `make app` and `make install` keep their existing Apple
-Development signing path, so they continue to preserve the macOS Accessibility
-permission used during development. Updating `kazuph/homebrew-tap` after a
+available. Local `make install` uses that same Developer ID identity for the
+canonical `/Applications/Sagasu.app`; it does not create an Apple Development
+or ad-hoc copy under `~/Applications`. Updating `kazuph/homebrew-tap` after a
 release remains a manager-owned operation outside this repository.
