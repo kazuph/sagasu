@@ -81,6 +81,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
                 }
             )
         } catch {
+            WindowManager.debugLog("global event tap failed error=\(error.localizedDescription)")
             fputs("Sagasu global event tap failed: \(error.localizedDescription)\n", stderr)
         }
 

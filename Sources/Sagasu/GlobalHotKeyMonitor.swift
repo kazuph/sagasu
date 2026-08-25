@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+@preconcurrency import CoreFoundation
 import Foundation
 
 enum LauncherHotKey {
@@ -14,6 +15,7 @@ final class GlobalHotKeyMonitor {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var eventTapThread: Thread?
 
     init(
         launcherHandler: @escaping (LauncherHotKey) -> Void,
@@ -38,16 +40,22 @@ final class GlobalHotKeyMonitor {
         Self.activeEventTap = eventTap
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         self.runLoopSource = runLoopSource
-        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        let eventTapThread = Thread {
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
+            CFRunLoopRun()
+        }
+        eventTapThread.name = "Sagasu global hotkey monitor"
+        self.eventTapThread = eventTapThread
+        eventTapThread.start()
         CGEvent.tapEnable(tap: eventTap, enable: true)
+        WindowManager.debugLog("global event tap created valid=\(CFMachPortIsValid(eventTap))")
     }
 
     deinit {
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        }
+        WindowManager.debugLog("global event tap deinit")
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
         }
         Self.activeEventTap = nil
         Self.launcherHandler = nil
@@ -89,7 +97,9 @@ final class GlobalHotKeyMonitor {
     private static let handleEventTap: CGEventTapCallBack = { _, type, event, _ in
         if shouldReenableEventTap(for: type) {
             if let eventTap = activeEventTap {
+                WindowManager.debugLog("global event tap disabled type=\(type.rawValue) before=\(CGEvent.tapIsEnabled(tap: eventTap))")
                 CGEvent.tapEnable(tap: eventTap, enable: true)
+                WindowManager.debugLog("global event tap reenabled after=\(CGEvent.tapIsEnabled(tap: eventTap))")
             }
             return Unmanaged.passUnretained(event)
         }
