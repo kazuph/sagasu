@@ -13,13 +13,18 @@ final class LauncherWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    func focusSearchField() {
-        guard let searchField else { return }
-        makeFirstResponder(searchField)
+    @discardableResult
+    func focusSearchField() -> Bool {
+        guard let searchField, searchField.window === self else {
+            self.searchField = nil
+            return false
+        }
+        guard makeFirstResponder(searchField) else { return false }
 
         if let textField = searchField as? NSTextField {
             textField.currentEditor()?.selectedRange = NSRange(location: textField.stringValue.count, length: 0)
         }
+        return true
     }
 
     override func cancelOperation(_ sender: Any?) {
