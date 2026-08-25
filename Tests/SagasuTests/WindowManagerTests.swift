@@ -197,12 +197,12 @@ func translatedFramePreservesBottomHalfOnDestinationDisplay() {
 
 @MainActor
 @Test
-func windowHotKeyMonitorMapsHLIWithoutMixingCommands() {
+func globalHotKeyMonitorMapsHLIWithoutMixingCommands() {
     let flags: CGEventFlags = [.maskCommand, .maskControl, .maskShift]
 
-    #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_H), flags: flags) == .leftHalf)
-    #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_L), flags: flags) == .rightHalf)
-    #expect(WindowHotKeyMonitor.command(keyCode: UInt32(kVK_ANSI_I), flags: flags) == .centerThird)
+    #expect(GlobalHotKeyMonitor.windowCommand(keyCode: UInt32(kVK_ANSI_H), flags: flags) == .leftHalf)
+    #expect(GlobalHotKeyMonitor.windowCommand(keyCode: UInt32(kVK_ANSI_L), flags: flags) == .rightHalf)
+    #expect(GlobalHotKeyMonitor.windowCommand(keyCode: UInt32(kVK_ANSI_I), flags: flags) == .centerThird)
 }
 
 @MainActor

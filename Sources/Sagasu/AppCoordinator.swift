@@ -11,9 +11,8 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     let searchEngine: SearchEngine
     let searchViewModel: SearchViewModel
 
-    private var launcherHotKeyMonitor: LauncherHotKeyMonitor?
+    private var globalHotKeyMonitor: GlobalHotKeyMonitor?
     private var launcherHotKeyMonitors: [HotKeyMonitor] = []
-    private var windowHotKeyMonitor: WindowHotKeyMonitor?
     private var windowHotKeyMonitors: [HotKeyMonitor] = []
     private let debugWindowCommandNotification = Notification.Name("com.kazuph.sagasu.debug.windowCommand")
     private let windowManager = WindowManager()
@@ -73,13 +72,16 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         configureStatusItem()
 
         do {
-            launcherHotKeyMonitor = try LauncherHotKeyMonitor { [weak self] hotKey in
-                Task { @MainActor in
-                    self?.handleLauncherHotKey(hotKey)
+            globalHotKeyMonitor = try GlobalHotKeyMonitor(
+                launcherHandler: { [weak self] hotKey in
+                    Task { @MainActor in self?.handleLauncherHotKey(hotKey) }
+                },
+                windowHandler: { [weak self] command in
+                    Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
                 }
-            }
+            )
         } catch {
-            fputs("Sagasu launcher event tap failed: \(error.localizedDescription)\n", stderr)
+            fputs("Sagasu global event tap failed: \(error.localizedDescription)\n", stderr)
         }
 
         configureLauncherCarbonHotKeys()
@@ -261,14 +263,6 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func configureWindowManagementHotKeys() {
-        do {
-            windowHotKeyMonitor = try WindowHotKeyMonitor { [weak self] command in
-                Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
-            }
-        } catch {
-            fputs("Sagasu window hotkey monitor failed: \(error.localizedDescription)\n", stderr)
-        }
-
         let modifiers = UInt32(controlKey | shiftKey | cmdKey)
         let bindings: [(UInt32, WindowManager.Command)] = [
             (UInt32(kVK_ANSI_J), .bottomHalf),

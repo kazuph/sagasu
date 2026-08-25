@@ -2,15 +2,25 @@ import AppKit
 import Carbon
 import Foundation
 
-final class WindowHotKeyMonitor {
-    nonisolated(unsafe) private static var handler: ((WindowManager.Command) -> Void)?
+enum LauncherHotKey {
+    case defaultSearch
+    case clipboardHistory
+}
+
+final class GlobalHotKeyMonitor {
+    nonisolated(unsafe) private static var launcherHandler: ((LauncherHotKey) -> Void)?
+    nonisolated(unsafe) private static var windowHandler: ((WindowManager.Command) -> Void)?
     nonisolated(unsafe) private static var activeEventTap: CFMachPort?
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
-    init(handler: @escaping (WindowManager.Command) -> Void) throws {
-        Self.handler = handler
+    init(
+        launcherHandler: @escaping (LauncherHotKey) -> Void,
+        windowHandler: @escaping (WindowManager.Command) -> Void
+    ) throws {
+        Self.launcherHandler = launcherHandler
+        Self.windowHandler = windowHandler
 
         let mask = 1 << CGEventType.keyDown.rawValue
         guard let eventTap = CGEvent.tapCreate(
@@ -40,10 +50,15 @@ final class WindowHotKeyMonitor {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
         Self.activeEventTap = nil
-        Self.handler = nil
+        Self.launcherHandler = nil
+        Self.windowHandler = nil
     }
 
-    static func command(keyCode: UInt32, flags: CGEventFlags) -> WindowManager.Command? {
+    static func shouldReenableEventTap(for type: CGEventType) -> Bool {
+        type == .tapDisabledByTimeout || type == .tapDisabledByUserInput
+    }
+
+    static func windowCommand(keyCode: UInt32, flags: CGEventFlags) -> WindowManager.Command? {
         let relevantFlags = flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
         guard relevantFlags == [.maskCommand, .maskControl, .maskShift] else {
             return nil
@@ -72,11 +87,10 @@ final class WindowHotKeyMonitor {
     }
 
     private static let handleEventTap: CGEventTapCallBack = { _, type, event, _ in
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        if shouldReenableEventTap(for: type) {
             if let eventTap = activeEventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             }
-            WindowManager.debugLog("eventTap re-enabled type=\(type.rawValue)")
             return Unmanaged.passUnretained(event)
         }
 
@@ -85,11 +99,26 @@ final class WindowHotKeyMonitor {
         }
 
         let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode))
-        guard let command = command(keyCode: keyCode, flags: event.flags) else {
-            return Unmanaged.passUnretained(event)
+        let flags = event.flags
+        if let hotKey = launcherHotKey(keyCode: keyCode, flags: flags) {
+            launcherHandler?(hotKey)
+            return nil
         }
+        if let command = windowCommand(keyCode: keyCode, flags: flags) {
+            windowHandler?(command)
+            return nil
+        }
+        return Unmanaged.passUnretained(event)
+    }
 
-        handler?(command)
+    private static func launcherHotKey(keyCode: UInt32, flags: CGEventFlags) -> LauncherHotKey? {
+        let relevantFlags = flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
+        if keyCode == UInt32(kVK_Space), relevantFlags == .maskCommand {
+            return .defaultSearch
+        }
+        if keyCode == UInt32(kVK_ANSI_V), relevantFlags == [.maskCommand, .maskShift] {
+            return .clipboardHistory
+        }
         return nil
     }
 }

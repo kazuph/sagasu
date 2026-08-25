@@ -5,7 +5,7 @@ import Testing
 
 @Test
 func launcherEventTapReenablesAfterSystemDisablesIt() {
-    #expect(LauncherHotKeyMonitor.shouldReenableEventTap(for: .tapDisabledByTimeout))
-    #expect(LauncherHotKeyMonitor.shouldReenableEventTap(for: .tapDisabledByUserInput))
-    #expect(LauncherHotKeyMonitor.shouldReenableEventTap(for: .keyDown) == false)
+    #expect(GlobalHotKeyMonitor.shouldReenableEventTap(for: .tapDisabledByTimeout))
+    #expect(GlobalHotKeyMonitor.shouldReenableEventTap(for: .tapDisabledByUserInput))
+    #expect(GlobalHotKeyMonitor.shouldReenableEventTap(for: .keyDown) == false)
 }
