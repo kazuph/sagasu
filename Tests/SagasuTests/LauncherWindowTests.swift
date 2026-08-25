@@ -36,4 +36,6 @@ func launcherWindowFocusesAttachedSearchField() throws {
 
     #expect(window.focusSearchField())
     #expect(window.firstResponder === searchField.currentEditor())
+    #expect(window.focusSearchField())
+    #expect(window.firstResponder === searchField.currentEditor())
 }

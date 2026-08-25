@@ -19,6 +19,9 @@ final class LauncherWindow: NSWindow {
             self.searchField = nil
             return false
         }
+        if firstResponder === searchField || firstResponder === (searchField as? NSTextField)?.currentEditor() {
+            return true
+        }
         guard makeFirstResponder(searchField) else { return false }
 
         if let textField = searchField as? NSTextField {
