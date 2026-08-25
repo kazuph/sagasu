@@ -9,6 +9,7 @@ enum LauncherHotKey {
 
 final class LauncherHotKeyMonitor {
     nonisolated(unsafe) private static var handler: ((LauncherHotKey) -> Void)?
+    nonisolated(unsafe) private static var activeEventTap: CFMachPort?
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -30,6 +31,7 @@ final class LauncherHotKeyMonitor {
         }
 
         self.eventTap = eventTap
+        Self.activeEventTap = eventTap
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         self.runLoopSource = runLoopSource
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -43,10 +45,18 @@ final class LauncherHotKeyMonitor {
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
+        Self.activeEventTap = nil
         Self.handler = nil
     }
 
     private static let handleEventTap: CGEventTapCallBack = { _, type, event, _ in
+        if shouldReenableEventTap(for: type) {
+            if let eventTap = activeEventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
         guard type == .keyDown,
               let hotKey = LauncherHotKeyMonitor.hotKey(for: event) else {
             return Unmanaged.passUnretained(event)
@@ -54,6 +64,10 @@ final class LauncherHotKeyMonitor {
 
         LauncherHotKeyMonitor.handler?(hotKey)
         return nil
+    }
+
+    static func shouldReenableEventTap(for type: CGEventType) -> Bool {
+        type == .tapDisabledByTimeout || type == .tapDisabledByUserInput
     }
 
     private static func hotKey(for event: CGEvent) -> LauncherHotKey? {
