@@ -72,15 +72,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         _ = WindowManager.requestAccessibilityPermissionIfNeeded()
         configureStatusItem()
 
-        do {
-            launcherHotKeyMonitor = try LauncherHotKeyMonitor { [weak self] hotKey in
-                Task { @MainActor in
-                    self?.handleLauncherHotKey(hotKey)
-                }
-            }
-        } catch {
-            fputs("Sagasu launcher event tap failed: \(error.localizedDescription)\n", stderr)
-        }
+        configureLauncherEventTap()
 
         configureLauncherCarbonHotKeys()
 
@@ -96,10 +88,10 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
             let panelController = LauncherPanelController(rootView: rootView)
             panelController.onDismiss = { [weak self] in
                 self?.searchViewModel.dismiss()
-                self?.ensureEventTapsEnabled()
+                self?.rebuildEventTaps()
             }
             self.launcherPanelController = panelController
-            self.ensureEventTapsEnabled()
+            self.rebuildEventTaps()
 
             if configuration.showOnLaunch {
                 self.searchViewModel.prepareForPresentation()
@@ -262,14 +254,21 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
-    private func configureWindowManagementHotKeys() {
+    private func configureLauncherEventTap() {
+        launcherHotKeyMonitor = nil
         do {
-            windowHotKeyMonitor = try WindowHotKeyMonitor { [weak self] command in
-                Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
+            launcherHotKeyMonitor = try LauncherHotKeyMonitor { [weak self] hotKey in
+                Task { @MainActor in
+                    self?.handleLauncherHotKey(hotKey)
+                }
             }
         } catch {
-            fputs("Sagasu window hotkey monitor failed: \(error.localizedDescription)\n", stderr)
+            fputs("Sagasu launcher event tap failed: \(error.localizedDescription)\n", stderr)
         }
+    }
+
+    private func configureWindowManagementHotKeys() {
+        configureWindowManagementEventTap()
 
         let modifiers = UInt32(controlKey | shiftKey | cmdKey)
         let bindings: [(UInt32, WindowManager.Command)] = [
@@ -295,9 +294,20 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
-    private func ensureEventTapsEnabled() {
-        launcherHotKeyMonitor?.ensureEnabled()
-        windowHotKeyMonitor?.ensureEnabled()
+    private func configureWindowManagementEventTap() {
+        windowHotKeyMonitor = nil
+        do {
+            windowHotKeyMonitor = try WindowHotKeyMonitor { [weak self] command in
+                Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
+            }
+        } catch {
+            fputs("Sagasu window hotkey monitor failed: \(error.localizedDescription)\n", stderr)
+        }
+    }
+
+    private func rebuildEventTaps() {
+        configureLauncherEventTap()
+        configureWindowManagementEventTap()
     }
 
     private func configureDebugWindowCommandsIfNeeded() {

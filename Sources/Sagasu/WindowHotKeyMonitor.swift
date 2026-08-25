@@ -43,11 +43,6 @@ final class WindowHotKeyMonitor {
         Self.handler = nil
     }
 
-    func ensureEnabled() {
-        guard let eventTap else { return }
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-    }
-
     static func command(keyCode: UInt32, flags: CGEventFlags) -> WindowManager.Command? {
         let relevantFlags = flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
         guard relevantFlags == [.maskCommand, .maskControl, .maskShift] else {

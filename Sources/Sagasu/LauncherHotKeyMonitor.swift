@@ -49,11 +49,6 @@ final class LauncherHotKeyMonitor {
         Self.handler = nil
     }
 
-    func ensureEnabled() {
-        guard let eventTap else { return }
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-    }
-
     private static let handleEventTap: CGEventTapCallBack = { _, type, event, _ in
         if shouldReenableEventTap(for: type) {
             if let eventTap = activeEventTap {
