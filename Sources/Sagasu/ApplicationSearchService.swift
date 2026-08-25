@@ -7,14 +7,17 @@ struct ApplicationSearchService: @unchecked Sendable {
         let name: String
         let bundleIdentifier: String
         let normalizedName: String
+        let normalizedSearchTerms: String
     }
 
     private let fileManager: FileManager
     private let roots: [URL]
+    private let preferredLanguages: [String]
 
-    init(fileManager: FileManager = .default, roots: [URL]? = nil) {
+    init(fileManager: FileManager = .default, roots: [URL]? = nil, preferredLanguages: [String] = Locale.preferredLanguages) {
         self.fileManager = fileManager
         self.roots = roots ?? Self.defaultRoots(fileManager: fileManager)
+        self.preferredLanguages = preferredLanguages
     }
 
     func search(
@@ -24,7 +27,7 @@ struct ApplicationSearchService: @unchecked Sendable {
         additionalResults: [SearchResult] = [],
         runningBundleIdentifiers providedRunningBundleIdentifiers: Set<String>? = nil
     ) -> [SearchResult] {
-        let applications = Self.loadApplications(fileManager: fileManager, roots: roots)
+        let applications = Self.loadApplications(fileManager: fileManager, roots: roots, preferredLanguages: preferredLanguages)
         let normalizedQuery = SearchMatcher.normalize(query)
         let runningBundleIdentifiers = providedRunningBundleIdentifiers ?? Set(
             NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
@@ -38,7 +41,7 @@ struct ApplicationSearchService: @unchecked Sendable {
             } else if let matchedScore = SearchMatcher.score(
                 query: normalizedQuery,
                 primaryText: application.normalizedName,
-                secondaryText: SearchMatcher.normalize(application.bundleIdentifier)
+                secondaryText: application.normalizedSearchTerms
             ) {
                 score = matchedScore + (runningBundleIdentifiers.contains(application.bundleIdentifier) ? 25 : 0)
             } else {
@@ -98,7 +101,7 @@ struct ApplicationSearchService: @unchecked Sendable {
         ]
     }
 
-    private static func loadApplications(fileManager: FileManager, roots: [URL]) -> [IndexedApplication] {
+    private static func loadApplications(fileManager: FileManager, roots: [URL], preferredLanguages: [String]) -> [IndexedApplication] {
         var seenPaths = Set<String>()
         var applications: [IndexedApplication] = []
 
@@ -113,13 +116,15 @@ struct ApplicationSearchService: @unchecked Sendable {
 
             while let item = enumerator.nextObject() as? URL {
                 if item.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
+                    let metadata = applicationMetadata(for: item, preferredLanguages: preferredLanguages)
                     seenPaths.insert(item.path)
                     applications.append(
                         IndexedApplication(
                             url: item,
-                            name: item.deletingPathExtension().lastPathComponent,
-                            bundleIdentifier: Bundle(url: item)?.bundleIdentifier ?? "",
-                            normalizedName: SearchMatcher.normalize(item.deletingPathExtension().lastPathComponent)
+                            name: metadata.name,
+                            bundleIdentifier: metadata.bundleIdentifier,
+                            normalizedName: SearchMatcher.normalize(metadata.name),
+                            normalizedSearchTerms: SearchMatcher.normalize(metadata.searchTerms.joined(separator: " "))
                         )
                     )
                     enumerator.skipDescendants()
@@ -130,5 +135,104 @@ struct ApplicationSearchService: @unchecked Sendable {
         return Array(Set(applications)).sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
+    }
+
+    private static func applicationMetadata(
+        for url: URL,
+        preferredLanguages: [String]
+    ) -> (name: String, bundleIdentifier: String, searchTerms: [String]) {
+        let fileName = url.deletingPathExtension().lastPathComponent
+        guard let bundle = Bundle(url: url) else {
+            return (fileName, "", [fileName])
+        }
+
+        let bundleIdentifier = bundle.bundleIdentifier ?? ""
+        let localizedInfo = localizedInfoDictionaries(for: bundle, preferredLanguages: preferredLanguages)
+        let localizedNames = localizedInfo
+            .compactMap { info in
+                (info["CFBundleDisplayName"] ?? info["CFBundleName"] ?? info["CFBundleSpokenName"]) as? String
+            }
+            .filter { $0.isEmpty == false }
+        let infoName = (bundle.infoDictionary?["CFBundleDisplayName"] ?? bundle.infoDictionary?["CFBundleName"]) as? String
+        let name = localizedNames.first ?? infoName ?? fileName
+        var terms = [fileName, name, bundleIdentifier]
+
+        for info in localizedInfo {
+            terms.append(contentsOf: applicationNameSearchTerms(from: info))
+        }
+        if let infoName {
+            terms.append(infoName)
+        }
+
+        return (name, bundleIdentifier, orderedUnique(terms.filter { $0.isEmpty == false }))
+    }
+
+    private static func localizedInfoDictionaries(for bundle: Bundle, preferredLanguages: [String]) -> [[String: Any]] {
+        var dictionaries: [[String: Any]] = []
+        let localizationCandidates = preferredLanguages.flatMap { language in
+            let normalized = language.replacingOccurrences(of: "-", with: "_")
+            let baseLanguage = normalized.split(separator: "_").first.map(String.init)
+            return [normalized, baseLanguage].compactMap(\.self)
+        }
+
+        for localization in orderedUnique(localizationCandidates + ["Base", "en"]) {
+            if let dictionary = bundle.localizedInfoDictionary(forLocalization: localization) {
+                dictionaries.append(dictionary)
+            }
+        }
+
+        if let dictionary = bundle.infoDictionary {
+            dictionaries.append(dictionary)
+        }
+
+        return dictionaries
+    }
+
+    private static func applicationNameSearchTerms(from info: [String: Any]) -> [String] {
+        var terms: [String] = []
+        for (key, value) in info {
+            guard let stringValue = value as? String else { continue }
+            if key == "CFBundleDisplayName" ||
+                key == "CFBundleName" ||
+                key == "CFBundleSpokenName" ||
+                key.hasPrefix("APP_NAME_SYNONYM") {
+                terms.append(stringValue)
+            } else if key == "kMDItemKeywords" {
+                terms.append(contentsOf: stringValue.split(separator: ",").map {
+                    String($0).trimmingCharacters(in: .whitespacesAndNewlines)
+                })
+            }
+        }
+        return terms
+    }
+
+    private static func orderedUnique(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for value in values where seen.insert(value).inserted {
+            result.append(value)
+        }
+        return result
+    }
+}
+
+private extension Bundle {
+    func localizedInfoDictionary(forLocalization localization: String) -> [String: Any]? {
+        if let stringsURL = url(
+            forResource: "InfoPlist",
+            withExtension: "strings",
+            subdirectory: nil,
+            localization: localization
+        ),
+            let dictionary = NSDictionary(contentsOf: stringsURL) as? [String: Any] {
+            return dictionary
+        }
+
+        guard let resourceURL,
+              let localizationTable = NSDictionary(contentsOf: resourceURL.appending(path: "InfoPlist.loctable")) as? [String: Any],
+              let dictionary = localizationTable[localization] as? [String: Any] else {
+            return nil
+        }
+        return dictionary
     }
 }
