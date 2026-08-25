@@ -20,7 +20,7 @@ final class LauncherHotKeyMonitor {
         let mask = 1 << CGEventType.keyDown.rawValue
 
         guard let eventTap = CGEvent.tapCreate(
-            tap: .cghidEventTap,
+            tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(mask),
