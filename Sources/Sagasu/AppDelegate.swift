@@ -4,8 +4,15 @@ import Darwin
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let coordinator = AppCoordinator()
+    private var didStart = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        start()
+    }
+
+    func start() {
+        guard didStart == false else { return }
+        didStart = true
         terminateOtherSagasuInstances()
         coordinator.start(configuration: .current)
     }

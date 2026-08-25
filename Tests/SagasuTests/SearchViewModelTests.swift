@@ -5,6 +5,15 @@ import Testing
 
 @MainActor
 @Test
+func constructingSearchViewModelDoesNotStartSearch() async throws {
+    let viewModel = try makeSearchViewModel()
+
+    #expect(viewModel.isSearching == false)
+    #expect(viewModel.results.isEmpty)
+}
+
+@MainActor
+@Test
 func presentationAlwaysStartsAtTopResult() async throws {
     let viewModel = try makeSearchViewModel()
 

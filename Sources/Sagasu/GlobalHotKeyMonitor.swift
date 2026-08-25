@@ -24,6 +24,13 @@ final class GlobalHotKeyMonitor {
         Self.launcherHandler = launcherHandler
         Self.windowHandler = windowHandler
 
+        let hasListenAccess = CGPreflightListenEventAccess()
+        WindowManager.debugLog("global event tap listen preflight=\(hasListenAccess)")
+        guard hasListenAccess || CGRequestListenEventAccess() else {
+            throw LauncherError.hotKeyRegistrationFailed(-1)
+        }
+        WindowManager.debugLog("global event tap listen access ready")
+
         let mask = 1 << CGEventType.keyDown.rawValue
         guard let eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -33,20 +40,25 @@ final class GlobalHotKeyMonitor {
             callback: Self.handleEventTap,
             userInfo: nil
         ) else {
+            WindowManager.debugLog("global event tap create returned nil")
             throw LauncherError.hotKeyRegistrationFailed(-1)
         }
 
         self.eventTap = eventTap
         Self.activeEventTap = eventTap
+        CGEvent.tapEnable(tap: eventTap, enable: false)
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         self.runLoopSource = runLoopSource
+        let runLoopReady = DispatchSemaphore(value: 0)
         let eventTapThread = Thread {
             CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
+            runLoopReady.signal()
             CFRunLoopRun()
         }
         eventTapThread.name = "Sagasu global hotkey monitor"
         self.eventTapThread = eventTapThread
         eventTapThread.start()
+        runLoopReady.wait()
         CGEvent.tapEnable(tap: eventTap, enable: true)
         WindowManager.debugLog("global event tap created valid=\(CFMachPortIsValid(eventTap))")
     }

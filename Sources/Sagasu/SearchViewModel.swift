@@ -82,7 +82,6 @@ final class SearchViewModel: ObservableObject {
 
     init(searchEngine: SearchEngine) {
         self.searchEngine = searchEngine
-        refreshSearch()
     }
 
     func prepareForPresentation(initialQuery: String = "") {

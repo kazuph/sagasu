@@ -12,6 +12,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     let searchViewModel: SearchViewModel
 
     private var globalHotKeyMonitor: GlobalHotKeyMonitor?
+    nonisolated(unsafe) private var globalHotKeyRetryObserver: CFRunLoopObserver?
     private var launcherHotKeyMonitors: [HotKeyMonitor] = []
     private var windowHotKeyMonitors: [HotKeyMonitor] = []
     private let debugWindowCommandNotification = Notification.Name("com.kazuph.sagasu.debug.windowCommand")
@@ -64,47 +65,30 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
 
     deinit {
         DistributedNotificationCenter.default().removeObserver(self)
+        if let globalHotKeyRetryObserver {
+            CFRunLoopRemoveObserver(CFRunLoopGetMain(), globalHotKeyRetryObserver, .commonModes)
+        }
     }
 
     func start(configuration: LaunchConfiguration = .current) {
+        NSApp.setActivationPolicy(.accessory)
         NSApp.applicationIconImage = SagasuIcon.appIcon()
         _ = WindowManager.requestAccessibilityPermissionIfNeeded()
         configureStatusItem()
 
-        do {
-            globalHotKeyMonitor = try GlobalHotKeyMonitor(
-                launcherHandler: { [weak self] hotKey in
-                    Task { @MainActor in self?.handleLauncherHotKey(hotKey) }
-                },
-                windowHandler: { [weak self] command in
-                    Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
-                }
-            )
-        } catch {
-            WindowManager.debugLog("global event tap failed error=\(error.localizedDescription)")
-            fputs("Sagasu global event tap failed: \(error.localizedDescription)\n", stderr)
-        }
+        observeGlobalHotKeyRetryLifecycle()
+        configureGlobalHotKeyMonitor()
 
         configureLauncherCarbonHotKeys()
 
         configureWindowManagementHotKeys()
         configureDebugWindowCommandsIfNeeded()
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-
-            let rootView = SearchRootView(viewModel: self.searchViewModel) { [weak self] in
-                self?.hideLauncher()
-            }
-            let panelController = LauncherPanelController(rootView: rootView)
-            panelController.onDismiss = { [weak self] in
-                self?.searchViewModel.dismiss()
-            }
-            self.launcherPanelController = panelController
-
+        if configuration.showOnLaunch || configuration.snapshotPath != nil {
+            _ = ensureLauncherPanelController()
             if configuration.showOnLaunch {
-                self.searchViewModel.prepareForPresentation()
-                self.launcherPanelController?.show()
+                searchViewModel.prepareForPresentation()
+                launcherPanelController?.show()
             }
 
             if let snapshotPath = configuration.snapshotPath {
@@ -139,7 +123,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func toggleLauncher(initialQuery: String) {
-        guard let launcherPanelController else { return }
+        let launcherPanelController = ensureLauncherPanelController()
 
         if launcherPanelController.isVisible {
             hideLauncher()
@@ -151,9 +135,10 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func showLauncher(initialQuery: String) {
+        let launcherPanelController = ensureLauncherPanelController()
         rememberApplicationBeforeLauncher()
         searchViewModel.prepareForPresentation(initialQuery: initialQuery)
-        launcherPanelController?.show()
+        launcherPanelController.show()
     }
 
     func hideLauncher() {
@@ -161,8 +146,9 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     @objc private func showLauncherFromStatusItem(_ sender: Any?) {
+        let launcherPanelController = ensureLauncherPanelController()
         searchViewModel.prepareForPresentation()
-        launcherPanelController?.show()
+        launcherPanelController.show()
     }
 
     @objc private func toggleLaunchAtLoginFromStatusItem(_ sender: Any?) {
@@ -261,6 +247,65 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
                 return nil
             }
         }
+    }
+
+    private func configureGlobalHotKeyMonitor() {
+        guard globalHotKeyMonitor == nil else { return }
+        do {
+            WindowManager.debugLog("global event tap configure attempt")
+            globalHotKeyMonitor = try GlobalHotKeyMonitor(
+                launcherHandler: { [weak self] hotKey in
+                    Task { @MainActor in self?.handleLauncherHotKey(hotKey) }
+                },
+                windowHandler: { [weak self] command in
+                    Task { @MainActor in self?.performWindowManagement(command, source: "tap") }
+                }
+            )
+            stopObservingGlobalHotKeyRetryLifecycle()
+        } catch {
+            WindowManager.debugLog("global event tap failed error=\(error.localizedDescription)")
+            fputs("Sagasu global event tap failed: \(error.localizedDescription)\n", stderr)
+        }
+    }
+
+    private func observeGlobalHotKeyRetryLifecycle() {
+        guard globalHotKeyRetryObserver == nil else { return }
+        WindowManager.debugLog("global event tap retry lifecycle observer installed")
+        let observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.beforeWaiting.rawValue,
+            true,
+            0
+        ) { [weak self] _, _ in
+            WindowManager.debugLog("global event tap retry lifecycle fired")
+            Task { @MainActor in
+                self?.configureGlobalHotKeyMonitor()
+            }
+        }
+        globalHotKeyRetryObserver = observer
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+    }
+
+    private func stopObservingGlobalHotKeyRetryLifecycle() {
+        guard let globalHotKeyRetryObserver else { return }
+        CFRunLoopRemoveObserver(CFRunLoopGetMain(), globalHotKeyRetryObserver, .commonModes)
+        self.globalHotKeyRetryObserver = nil
+    }
+
+    private func ensureLauncherPanelController() -> LauncherPanelController {
+        if let launcherPanelController {
+            return launcherPanelController
+        }
+
+        let rootView = SearchRootView(viewModel: searchViewModel) { [weak self] in
+            self?.hideLauncher()
+        }
+        let panelController = LauncherPanelController(rootView: rootView)
+        panelController.onDismiss = { [weak self] in
+            self?.searchViewModel.dismiss()
+        }
+        launcherPanelController = panelController
+        return panelController
     }
 
     private func configureWindowManagementHotKeys() {

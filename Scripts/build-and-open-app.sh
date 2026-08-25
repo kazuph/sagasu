@@ -79,14 +79,14 @@ installed_executable="$installed_app_dir/Contents/MacOS/Sagasu"
 running_pids=()
 while IFS= read -r pid; do
   running_pids+=("$pid")
-done < <(/bin/ps -axo pid=,comm= | /usr/bin/awk -v executable="$installed_executable" '$2 == executable { print $1 }')
+done < <(/bin/ps -axo pid=,args= | /usr/bin/awk -v executable="$installed_executable" '$2 == executable { print $1 }')
 
 if (( ${#running_pids[@]} > 0 )); then
   /bin/kill -TERM "${running_pids[@]}"
   /bin/sleep 0.5
 
   for pid in "${running_pids[@]}"; do
-    if [[ "$(/bin/ps -p "$pid" -o comm= 2>/dev/null | /usr/bin/xargs)" == "$installed_executable" ]]; then
+    if [[ "$(/bin/ps -p "$pid" -o args= 2>/dev/null | /usr/bin/awk '{ print $1 }')" == "$installed_executable" ]]; then
       printf 'Sagasu did not stop; no app was changed: pid %s\n' "$pid" >&2
       exit 1
     fi

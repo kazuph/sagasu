@@ -1,12 +1,16 @@
-import SwiftUI
+import AppKit
 
 @main
-struct SagasuApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+enum SagasuApp {
+    @MainActor
+    private static let appDelegate = AppDelegate()
 
-    var body: some Scene {
-        Settings {
-            EmptyView()
-        }
+    @MainActor
+    static func main() {
+        let application = NSApplication.shared
+        application.delegate = appDelegate
+        appDelegate.start()
+        application.finishLaunching()
+        application.run()
     }
 }
