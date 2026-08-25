@@ -55,6 +55,35 @@ func activatingPrefixUpdatesQueryAndMode() async throws {
 
 @MainActor
 @Test
+func emptyApplicationSearchDoesNotScanRecentFolders() async throws {
+    let fileManager = FileManager.default
+    let baseDirectoryURL = fileManager.temporaryDirectory
+        .appending(path: "SagasuEmptyApplicationSearch-\(UUID().uuidString)", directoryHint: .isDirectory)
+    let recentFolderURL = baseDirectoryURL.appending(path: "Recent Folder", directoryHint: .isDirectory)
+    try fileManager.createDirectory(at: recentFolderURL, withIntermediateDirectories: true)
+    defer { try? fileManager.removeItem(at: baseDirectoryURL) }
+
+    let clipboardStore = ClipboardHistoryStore(
+        fileManager: fileManager,
+        pasteboard: NSPasteboard.withUniqueName(),
+        baseDirectoryURL: baseDirectoryURL.appending(path: "Clipboard", directoryHint: .isDirectory)
+    )
+    let searchEngine = SearchEngine(
+        applicationSearchService: ApplicationSearchService(fileManager: fileManager, roots: []),
+        fileSearchService: FileSearchService(fileManager: fileManager, scopes: [baseDirectoryURL]),
+        clipboardStore: clipboardStore,
+        herdrSearchService: nil
+    )
+
+    let results = try await searchEngine.search(
+        for: ParsedSearchQuery(mode: .applications, query: "", clipboardImageOnly: false)
+    )
+
+    #expect(results.contains { $0.title == "Recent Folder" } == false)
+}
+
+@MainActor
+@Test
 func newSearchResultsDoNotKeepPreviousCursorPosition() async throws {
     let viewModel = try makeSearchViewModel()
 

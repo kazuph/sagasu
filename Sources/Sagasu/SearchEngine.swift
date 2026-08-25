@@ -66,13 +66,7 @@ struct SearchEngine {
                     runningBundleIdentifiers: runningBundleIdentifiers
                 )
             }.value
-            if parsedQuery.query.isEmpty {
-                let fileSearchService = self.fileSearchService
-                let recentFolders = await Task.detached(priority: .userInitiated) {
-                    fileSearchService.recentFolders(limit: 10)
-                }.value
-                return Array(appResults.prefix(3)) + recentFolders + Array(appResults.dropFirst(3))
-            }
+            if parsedQuery.query.isEmpty { return appResults }
 
             let webResults = webRouteSearchService.search(query: parsedQuery.query)
             let calculatorResults = calculatorSearchService.search(query: parsedQuery.query)
