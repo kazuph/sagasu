@@ -1,6 +1,6 @@
 import Foundation
 
-enum SearchAction: Hashable {
+enum SearchAction: Hashable, Sendable {
     case launchApplication(URL)
     case openURL(URL)
     case openURLInPreferredBrowser(URL, bundleIdentifier: String)
@@ -13,13 +13,13 @@ enum SearchAction: Hashable {
     case copyText(String)
 }
 
-enum SearchResultVisual: Hashable {
+enum SearchResultVisual: Hashable, Sendable {
     case symbol(String)
     case fileIcon(URL)
     case imageThumbnail(URL)
 }
 
-struct SearchResult: Hashable, Identifiable {
+struct SearchResult: Hashable, Identifiable, Sendable {
     let id = UUID()
     let title: String
     let subtitle: String

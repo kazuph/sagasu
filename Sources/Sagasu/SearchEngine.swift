@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 struct SearchEngine {
@@ -46,13 +47,25 @@ struct SearchEngine {
     func search(for parsedQuery: ParsedSearchQuery) async throws -> [SearchResult] {
         switch parsedQuery.mode {
         case .applications:
-            let additionalResults = clipboardImageTextService.searchResults(query: parsedQuery.query)
+            let clipboardImageResults = await MainActor.run {
+                clipboardImageTextService.searchResults(query: parsedQuery.query)
+            }
+            let additionalResults = clipboardImageResults
                 + (parsedQuery.query.isEmpty ? [] : macOSSettingsSearchService.results())
-            let appResults = applicationSearchService.search(
-                query: parsedQuery.query,
-                usageHistoryStore: usageHistoryStore,
-                additionalResults: additionalResults
-            )
+            let applicationSearchService = self.applicationSearchService
+            let usageHistoryStore = self.usageHistoryStore
+            let query = parsedQuery.query
+            let runningBundleIdentifiers = await MainActor.run {
+                Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+            }
+            let appResults = await Task.detached(priority: .userInitiated) {
+                applicationSearchService.search(
+                    query: query,
+                    usageHistoryStore: usageHistoryStore,
+                    additionalResults: additionalResults,
+                    runningBundleIdentifiers: runningBundleIdentifiers
+                )
+            }.value
             if parsedQuery.query.isEmpty {
                 let fileSearchService = self.fileSearchService
                 let recentFolders = await Task.detached(priority: .userInitiated) {

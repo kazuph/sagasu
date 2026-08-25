@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-struct ApplicationSearchService {
+struct ApplicationSearchService: @unchecked Sendable {
     private struct IndexedApplication: Hashable {
         let url: URL
         let name: String
@@ -21,11 +21,12 @@ struct ApplicationSearchService {
         query: String,
         limit: Int = 40,
         usageHistoryStore: UsageHistoryStore? = nil,
-        additionalResults: [SearchResult] = []
+        additionalResults: [SearchResult] = [],
+        runningBundleIdentifiers providedRunningBundleIdentifiers: Set<String>? = nil
     ) -> [SearchResult] {
         let applications = Self.loadApplications(fileManager: fileManager, roots: roots)
         let normalizedQuery = SearchMatcher.normalize(query)
-        let runningBundleIdentifiers = Set(
+        let runningBundleIdentifiers = providedRunningBundleIdentifiers ?? Set(
             NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
         )
         let now = Date()
