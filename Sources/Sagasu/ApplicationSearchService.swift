@@ -117,7 +117,7 @@ struct ApplicationSearchService: @unchecked Sendable {
                     applications.append(
                         IndexedApplication(
                             url: item,
-                            name: fileManager.displayName(atPath: item.path).replacingOccurrences(of: ".app", with: ""),
+                            name: item.deletingPathExtension().lastPathComponent,
                             bundleIdentifier: Bundle(url: item)?.bundleIdentifier ?? "",
                             normalizedName: SearchMatcher.normalize(item.deletingPathExtension().lastPathComponent)
                         )
