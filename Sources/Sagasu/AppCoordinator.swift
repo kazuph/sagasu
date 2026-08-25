@@ -96,8 +96,10 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
             let panelController = LauncherPanelController(rootView: rootView)
             panelController.onDismiss = { [weak self] in
                 self?.searchViewModel.dismiss()
+                self?.ensureEventTapsEnabled()
             }
             self.launcherPanelController = panelController
+            self.ensureEventTapsEnabled()
 
             if configuration.showOnLaunch {
                 self.searchViewModel.prepareForPresentation()
@@ -291,6 +293,11 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
                 return nil
             }
         }
+    }
+
+    private func ensureEventTapsEnabled() {
+        launcherHotKeyMonitor?.ensureEnabled()
+        windowHotKeyMonitor?.ensureEnabled()
     }
 
     private func configureDebugWindowCommandsIfNeeded() {
