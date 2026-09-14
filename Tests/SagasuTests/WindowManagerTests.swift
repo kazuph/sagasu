@@ -241,11 +241,11 @@ func chromeEnhancedUserInterfaceGuardOnlyDisablesWhenOriginalValueIsTrue() {
 
 @MainActor
 @Test
-func chromeEnhancedUserInterfaceRestoreRequiresOriginalTrueAndDisableSuccess() {
-    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: true, disableSucceeded: true))
-    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: true, disableSucceeded: false) == false)
-    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: false, disableSucceeded: true) == false)
-    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: nil, disableSucceeded: true) == false)
+func enhancedUserInterfaceRestoreRequiresOriginalTrueAndDisableAttempt() {
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: true, disableAttempted: true))
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: true, disableAttempted: false) == false)
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: false, disableAttempted: true) == false)
+    #expect(WindowManager.shouldRestoreEnhancedUserInterface(originalValue: nil, disableAttempted: true) == false)
 }
 
 @MainActor

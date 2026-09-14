@@ -476,6 +476,13 @@ struct WindowManager {
             return
         }
 
+        if application.bundleIdentifier == "com.kazuph.obails" {
+            try withEnhancedUserInterfaceDisabled(for: application) {
+                try set(frame: frame, anchor: anchor, for: window)
+            }
+            return
+        }
+
         try set(frame: frame, anchor: anchor, for: window)
     }
 
@@ -492,27 +499,40 @@ struct WindowManager {
         for window: AXUIElement,
         application: NSRunningApplication
     ) throws {
+        try withEnhancedUserInterfaceDisabled(for: application) {
+            try applyChromeFrame(frame, anchor: anchor, for: window)
+        }
+    }
+
+    private func withEnhancedUserInterfaceDisabled(
+        for application: NSRunningApplication,
+        operation: () throws -> Void
+    ) throws {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
         let enhancedUI = Self.copyBooleanAttribute(Self.enhancedUserInterfaceAttribute, from: appElement)
         let guardPlan = Self.enhancedUserInterfaceGuardPlan(originalValue: enhancedUI.value)
-        var shouldRestoreEnhancedUI = false
-        Self.debugLog("chrome enhancedUI read status=\(enhancedUI.status.rawValue) value=\(String(describing: enhancedUI.value))")
-
-        if guardPlan.shouldDisableBeforeOperation {
-            let status = Self.setBooleanAttribute(Self.enhancedUserInterfaceAttribute, value: false, on: appElement)
-            Self.debugLog("chrome enhancedUI disable status=\(status.rawValue)")
-            shouldRestoreEnhancedUI = Self.shouldRestoreEnhancedUserInterface(
-                originalValue: enhancedUI.value,
-                disableSucceeded: status == .success
-            )
-        }
+        Self.debugLog("enhancedUI read status=\(enhancedUI.status.rawValue) value=\(String(describing: enhancedUI.value))")
+        let shouldRestoreEnhancedUI = Self.shouldRestoreEnhancedUserInterface(
+            originalValue: enhancedUI.value,
+            disableAttempted: guardPlan.shouldDisableBeforeOperation
+        )
         defer {
             if shouldRestoreEnhancedUI {
                 let status = Self.setBooleanAttribute(Self.enhancedUserInterfaceAttribute, value: true, on: appElement)
-                Self.debugLog("chrome enhancedUI restore status=\(status.rawValue)")
+                Self.debugLog("enhancedUI restore status=\(status.rawValue)")
             }
         }
+        if guardPlan.shouldDisableBeforeOperation {
+            // Obails returns notImplemented even when AppKit changes the value.
+            // Always restore the original mode after attempting to disable it.
+            let status = Self.setBooleanAttribute(Self.enhancedUserInterfaceAttribute, value: false, on: appElement)
+            Self.debugLog("enhancedUI disable status=\(status.rawValue)")
+        }
 
+        try operation()
+    }
+
+    private func applyChromeFrame(_ frame: CGRect, anchor: FrameAnchor?, for window: AXUIElement) throws {
         try setSize(frame.size, for: window)
         try setPosition(frame.origin, for: window)
         try setSize(frame.size, for: window)
@@ -667,8 +687,8 @@ struct WindowManager {
         EnhancedUserInterfaceGuardPlan(shouldDisableBeforeOperation: originalValue == true)
     }
 
-    static func shouldRestoreEnhancedUserInterface(originalValue: Bool?, disableSucceeded: Bool) -> Bool {
-        originalValue == true && disableSucceeded
+    static func shouldRestoreEnhancedUserInterface(originalValue: Bool?, disableAttempted: Bool) -> Bool {
+        originalValue == true && disableAttempted
     }
 
     static func chromeReadbackResult(
