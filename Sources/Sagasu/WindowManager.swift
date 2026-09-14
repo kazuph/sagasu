@@ -511,26 +511,22 @@ struct WindowManager {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
         let enhancedUI = Self.copyBooleanAttribute(Self.enhancedUserInterfaceAttribute, from: appElement)
         let guardPlan = Self.enhancedUserInterfaceGuardPlan(originalValue: enhancedUI.value)
-        var shouldRestoreEnhancedUI = false
         Self.debugLog("enhancedUI read status=\(enhancedUI.status.rawValue) value=\(String(describing: enhancedUI.value))")
-
-        if guardPlan.shouldDisableBeforeOperation {
-            let status = Self.setBooleanAttribute(Self.enhancedUserInterfaceAttribute, value: false, on: appElement)
-            Self.debugLog("enhancedUI disable status=\(status.rawValue)")
-            shouldRestoreEnhancedUI = Self.shouldRestoreEnhancedUserInterface(
-                originalValue: enhancedUI.value,
-                // Obails returns notImplemented even when AppKit changes the value.
-                // Read back the state so the original accessibility mode is restored.
-                disableSucceeded: status == .success || Self.copyBooleanAttribute(
-                    Self.enhancedUserInterfaceAttribute, from: appElement
-                ).value == false
-            )
-        }
+        let shouldRestoreEnhancedUI = Self.shouldRestoreEnhancedUserInterface(
+            originalValue: enhancedUI.value,
+            disableAttempted: guardPlan.shouldDisableBeforeOperation
+        )
         defer {
             if shouldRestoreEnhancedUI {
                 let status = Self.setBooleanAttribute(Self.enhancedUserInterfaceAttribute, value: true, on: appElement)
                 Self.debugLog("enhancedUI restore status=\(status.rawValue)")
             }
+        }
+        if guardPlan.shouldDisableBeforeOperation {
+            // Obails returns notImplemented even when AppKit changes the value.
+            // Always restore the original mode after attempting to disable it.
+            let status = Self.setBooleanAttribute(Self.enhancedUserInterfaceAttribute, value: false, on: appElement)
+            Self.debugLog("enhancedUI disable status=\(status.rawValue)")
         }
 
         try operation()
@@ -691,8 +687,8 @@ struct WindowManager {
         EnhancedUserInterfaceGuardPlan(shouldDisableBeforeOperation: originalValue == true)
     }
 
-    static func shouldRestoreEnhancedUserInterface(originalValue: Bool?, disableSucceeded: Bool) -> Bool {
-        originalValue == true && disableSucceeded
+    static func shouldRestoreEnhancedUserInterface(originalValue: Bool?, disableAttempted: Bool) -> Bool {
+        originalValue == true && disableAttempted
     }
 
     static func chromeReadbackResult(

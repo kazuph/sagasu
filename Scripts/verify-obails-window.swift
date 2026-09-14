@@ -78,21 +78,30 @@ let checks: [(String, CGKeyCode, CGRect)] = [
 var failures = 0
 for round in 1...3 {
     for (name, key, expected) in checks {
+        application.activate()
+        Thread.sleep(forTimeInterval: 0.3)
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == application.processIdentifier else {
+            fatalError("Obails lost focus before the hotkey; no key was sent")
+        }
         let started = Date()
         send(key)
         var elapsed: Int?
+        var regressed = false
         // Observe for a full second, including frames that revert after an initial match.
         for _ in 0..<20 {
             Thread.sleep(forTimeInterval: 0.05)
-            if elapsed == nil, matches(try frame(of: window), expected) {
+            let matched = matches(try frame(of: window), expected)
+            if elapsed == nil, matched {
                 elapsed = Int(Date().timeIntervalSince(started) * 1000)
+            } else if elapsed != nil, !matched {
+                regressed = true
             }
         }
         let actual = try frame(of: window)
         let mode = try attribute("AXEnhancedUserInterface", of: app) as! Bool
-        let passed = matches(actual, expected) && mode == originalMode
+        let passed = matches(actual, expected) && mode == originalMode && !regressed
         if !passed { failures += 1 }
-        print("\(passed ? "PASS" : "FAIL") round=\(round) \(name) firstMatchMs=\(elapsed.map(String.init) ?? "none") expected=\(expected) actual=\(actual) enhancedUI=\(mode)")
+        print("\(passed ? "PASS" : "FAIL") round=\(round) \(name) firstMatchMs=\(elapsed.map(String.init) ?? "none") expected=\(expected) actual=\(actual) enhancedUI=\(mode) regressed=\(regressed)")
     }
 }
 print("failures=\(failures) checks=\(checks.count * 3)")
