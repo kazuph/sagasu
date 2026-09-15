@@ -10,7 +10,7 @@ macos_dir="$contents_dir/MacOS"
 resources_dir="$contents_dir/Resources"
 entitlements_path="$repo_dir/Packaging/Sagasu.entitlements"
 identity="${SAGASU_CODE_SIGN_IDENTITY:-${CODESIGN_IDENTITY:-Apple Development: Kazuhiro Homma (283LEN7F9Y)}}"
-version="${SAGASU_VERSION:-1.0.3}"
+version="${SAGASU_VERSION:-1.0.4}"
 distribution_build="${SAGASU_DISTRIBUTION_BUILD:-0}"
 
 codesign_identity_available() {
