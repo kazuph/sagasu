@@ -24,13 +24,14 @@ func macOSSettingsSearchReadsInstalledDisplaysExtension() {
 
 @MainActor
 @Test
-func defaultSearchIncludesInstalledDisplaysExtension() async throws {
+func applicationSearchIncludesJapaneseDisplaysExtension() async throws {
     let fileManager = FileManager.default
     let baseDirectoryURL = fileManager.temporaryDirectory
         .appending(path: "SagasuMacOSSettingsSearchIntegration-\(UUID().uuidString)", directoryHint: .isDirectory)
     defer { try? fileManager.removeItem(at: baseDirectoryURL) }
 
     let searchEngine = SearchEngine(
+        macOSSettingsSearchService: MacOSSettingsSearchService(preferredLocalizations: ["ja"]),
         clipboardStore: ClipboardHistoryStore(
             fileManager: fileManager,
             pasteboard: NSPasteboard.withUniqueName(),
