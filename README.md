@@ -116,5 +116,25 @@ Actions Secrets. Their values are never committed to this repository.
 The workflow fails before publication when the Developer ID identity is not
 available. Local `make install` uses that same Developer ID identity for the
 canonical `/Applications/Sagasu.app`; it does not create an Apple Development
-or ad-hoc copy under `~/Applications`. Updating `kazuph/homebrew-tap` after a
-release remains a manager-owned operation outside this repository.
+or ad-hoc copy under `~/Applications`. Updating `kazuph/homebrew-tap` is the next required step in the same delivery flow.
+
+### Completion means delivery through Homebrew
+
+A change is complete after all of the following, unless the requester explicitly
+limits the scope:
+
+1. Verify the change, commit/push it, complete review, and merge it into `main`.
+2. Publish a new version tag and confirm that Release CI publishes the signed,
+   notarized ZIP, DMG, and checksums.
+3. Verify the downloaded DMG checksum and update the version and SHA-256 in
+   `kazuph/homebrew-tap/Casks/sagasu.rb`; review and merge that update.
+4. Synchronize the Homebrew tap and run `brew upgrade --cask kazuph/tap/sagasu`
+   on this Mac.
+5. Launch `/Applications/Sagasu.app`, verify the released version, Developer ID
+   signature and notarization, and exercise the changed behavior using the
+   installed app. For window placement, run `swift Scripts/verify-obails-window.swift`
+   with Obails running and Accessibility permission granted.
+
+Merging source or installing a local build alone does not deliver the fix to
+Homebrew users. Report the public release URL, Homebrew version, installed version,
+and actual verification results before calling the work complete.
