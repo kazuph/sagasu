@@ -11,6 +11,7 @@ enum SearchAction: Hashable, Sendable {
     case focusTerminalPane(String)
     case configureLinearAPIKey
     case copyText(String)
+    case copyFile(URL)
 }
 
 enum SearchResultVisual: Hashable, Sendable {

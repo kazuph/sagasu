@@ -68,6 +68,8 @@ final class SearchViewModel: ObservableObject {
             return "`ghq ` searches local ghq repositories only."
         case .linearIssues:
             return "`l ` searches Linear issues. If no API key is saved, Sagasu asks once and stores it in Keychain."
+        case .path:
+            return "Paths starting with `/`, `~`, or `file://` open the file, or copy it to the clipboard."
         }
     }
 
@@ -227,7 +229,7 @@ private extension SearchMode {
         switch self {
         case .applications, .clipboard, .directories, .terminals, .githubOwnedRepositories, .ghqRepositories, .linearIssues:
             return true
-        case .files, .notes, .githubGlobalRepositories, .githubIssues, .githubPullRequests:
+        case .files, .path, .notes, .githubGlobalRepositories, .githubIssues, .githubPullRequests:
             return false
         }
     }
