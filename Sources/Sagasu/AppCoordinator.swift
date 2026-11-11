@@ -70,8 +70,16 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
+    static func copyFile(_ url: URL, to pasteboard: NSPasteboard) throws {
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects([url as NSURL]) else {
+            throw LauncherError.fileCopyFailed(url.path)
+        }
+    }
+
     func start(configuration: LaunchConfiguration = .current) {
         NSApp.setActivationPolicy(.accessory)
+        NSApp.mainMenu = Self.makeMainMenu()
         NSApp.applicationIconImage = SagasuIcon.appIcon()
         _ = WindowManager.requestAccessibilityPermissionIfNeeded()
         configureStatusItem()
@@ -429,6 +437,8 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
             case .copyText(let text):
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
+            case .copyFile(let url):
+                try Self.copyFile(url, to: .general)
             }
             try? searchEngine.markUsed(action: action)
             hideLauncher()

@@ -13,6 +13,7 @@ enum SearchMode: String, CaseIterable {
     case githubPullRequests
     case ghqRepositories
     case linearIssues
+    case path
 
     var displayName: String {
         switch self {
@@ -40,6 +41,8 @@ enum SearchMode: String, CaseIterable {
             return "ghq"
         case .linearIssues:
             return "Linear"
+        case .path:
+            return "Path"
         }
     }
 
@@ -69,6 +72,8 @@ enum SearchMode: String, CaseIterable {
             return "Search ghq repositories"
         case .linearIssues:
             return "Search Linear issues"
+        case .path:
+            return "Open or copy a file by path"
         }
     }
 }
@@ -82,6 +87,14 @@ struct ParsedSearchQuery: Equatable {
 enum SearchModeParser {
     static func parse(_ rawValue: String) -> ParsedSearchQuery {
         let lowercased = rawValue.lowercased()
+
+        let pathCandidate = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if pathCandidate.hasPrefix("/")
+            || pathCandidate == "~"
+            || pathCandidate.hasPrefix("~/")
+            || pathCandidate.lowercased().hasPrefix("file://") {
+            return ParsedSearchQuery(mode: .path, query: pathCandidate, clipboardImageOnly: false)
+        }
 
         if lowercased == "vi" {
             return ParsedSearchQuery(mode: .clipboard, query: "", clipboardImageOnly: true)

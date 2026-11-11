@@ -480,6 +480,8 @@ private extension SearchMode {
             return .purple
         case .linearIssues:
             return .indigo
+        case .path:
+            return .teal
         }
     }
 
@@ -507,6 +509,8 @@ private extension SearchMode {
             return "externaldrive"
         case .linearIssues:
             return "line.3.horizontal.decrease.circle"
+        case .path:
+            return "folder.badge.gearshape"
         }
     }
 
@@ -536,6 +540,8 @@ private extension SearchMode {
             return query.isEmpty ? "ghq repositories" : "No ghq repositories matched"
         case .linearIssues:
             return query.isEmpty ? "Type after `l ` to search Linear issues" : "No Linear issues matched"
+        case .path:
+            return "No file or folder at that path"
         }
     }
 
@@ -571,6 +577,8 @@ private extension SearchMode {
             return "`ghq ` searches only local ghq repository entries."
         case .linearIssues:
             return "Sagasu stores your Linear API key in macOS Keychain and opens issue results in Chrome."
+        case .path:
+            return "Type or paste a path starting with `/`, `~`, or `file://` to open or copy that file."
         }
     }
 }

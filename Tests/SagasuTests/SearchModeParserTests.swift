@@ -140,3 +140,43 @@ func shellCommandRunnerHandlesLargeOutput() throws {
     #expect(lines.first == "1")
     #expect(lines.last == "40000")
 }
+
+@Test
+func parsesAbsolutePathAsPathMode() {
+    let parsed = SearchModeParser.parse("/Users/x/a.txt")
+
+    #expect(parsed.mode == .path)
+    #expect(parsed.query == "/Users/x/a.txt")
+    #expect(parsed.clipboardImageOnly == false)
+}
+
+@Test
+func parsesTildePathsAsPathMode() {
+    #expect(SearchModeParser.parse("~/Downloads").mode == .path)
+    #expect(SearchModeParser.parse("~").mode == .path)
+    #expect(SearchModeParser.parse("~foo").mode == .applications)
+}
+
+@Test
+func parsesFileURLAsPathModeCaseInsensitively() {
+    let parsed = SearchModeParser.parse("file:///tmp/a%20b.txt")
+    #expect(parsed.mode == .path)
+    #expect(parsed.query == "file:///tmp/a%20b.txt")
+    #expect(SearchModeParser.parse("FILE:///tmp/a").mode == .path)
+}
+
+@Test
+func pathModeTrimsWhitespaceAndKeepsInnerSpaces() {
+    let parsed = SearchModeParser.parse("  \n/tmp/a  b.txt \n")
+
+    #expect(parsed.mode == .path)
+    #expect(parsed.query == "/tmp/a  b.txt")
+}
+
+@Test
+func filePrefixWithPathStaysFilesMode() {
+    let parsed = SearchModeParser.parse("f /tmp")
+
+    #expect(parsed.mode == .files)
+    #expect(parsed.query == "/tmp")
+}

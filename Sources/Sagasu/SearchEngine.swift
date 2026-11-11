@@ -13,6 +13,7 @@ struct SearchEngine {
     private let calculatorSearchService: CalculatorSearchService
     private let gitHubSearchService: GitHubSearchService
     private let linearSearchService: LinearSearchService
+    private let pathSearchService: PathSearchService
     private let usageHistoryStore: UsageHistoryStore
 
     init(
@@ -23,6 +24,7 @@ struct SearchEngine {
         webRouteSearchService: WebRouteSearchService = WebRouteSearchService(),
         gitHubSearchService: GitHubSearchService = GitHubSearchService(),
         linearSearchService: LinearSearchService = LinearSearchService(),
+        pathSearchService: PathSearchService = PathSearchService(),
         clipboardStore: ClipboardHistoryStore,
         clipboardImageTextService: ClipboardImageTextService = ClipboardImageTextService(),
         herdrSearchService: HerdrSearchService? = try? HerdrSearchService(),
@@ -40,6 +42,7 @@ struct SearchEngine {
         self.calculatorSearchService = calculatorSearchService
         self.gitHubSearchService = gitHubSearchService
         self.linearSearchService = linearSearchService
+        self.pathSearchService = pathSearchService
         self.usageHistoryStore = usageHistoryStore
     }
 
@@ -145,6 +148,12 @@ struct SearchEngine {
             let linearSearchService = self.linearSearchService
             let query = parsedQuery.query
             return try await linearSearchService.searchIssues(query: query)
+        case .path:
+            let pathSearchService = self.pathSearchService
+            let query = parsedQuery.query
+            return await Task.detached(priority: .userInitiated) {
+                pathSearchService.search(query: query)
+            }.value
         }
     }
 
@@ -158,7 +167,7 @@ struct SearchEngine {
             try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
         case .openURL(let url):
             try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
-        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImage, .extractTextFromClipboardImage, .focusTerminalPane, .configureLinearAPIKey, .copyText:
+        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImage, .extractTextFromClipboardImage, .focusTerminalPane, .configureLinearAPIKey, .copyText, .copyFile:
             return
         }
     }
