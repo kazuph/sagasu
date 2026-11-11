@@ -85,15 +85,29 @@ struct ParsedSearchQuery: Equatable {
 }
 
 enum SearchModeParser {
+    private static func pathQuery(_ rawValue: String) -> ParsedSearchQuery? {
+        let candidate = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard candidate.hasPrefix("/")
+            || candidate == "~"
+            || candidate.hasPrefix("~/")
+            || candidate.lowercased().hasPrefix("file://") else {
+            return nil
+        }
+        return ParsedSearchQuery(mode: .path, query: candidate, clipboardImageOnly: false)
+    }
+
     static func parse(_ rawValue: String) -> ParsedSearchQuery {
         let lowercased = rawValue.lowercased()
 
-        let pathCandidate = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if pathCandidate.hasPrefix("/")
-            || pathCandidate == "~"
-            || pathCandidate.hasPrefix("~/")
-            || pathCandidate.lowercased().hasPrefix("file://") {
-            return ParsedSearchQuery(mode: .path, query: pathCandidate, clipboardImageOnly: false)
+        if let pathQuery = pathQuery(rawValue) {
+            return pathQuery
+        }
+
+        // A path typed after the file or directory prefix (e.g. `f /a/b.txt`, `d ~/src/`)
+        // is resolved as a path instead of a Spotlight name search.
+        if lowercased.hasPrefix("f ") || lowercased.hasPrefix("d "),
+           let pathQuery = pathQuery(String(rawValue.dropFirst(2))) {
+            return pathQuery
         }
 
         if lowercased == "vi" {

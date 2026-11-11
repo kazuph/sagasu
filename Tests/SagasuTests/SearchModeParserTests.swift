@@ -174,9 +174,35 @@ func pathModeTrimsWhitespaceAndKeepsInnerSpaces() {
 }
 
 @Test
-func filePrefixWithPathStaysFilesMode() {
-    let parsed = SearchModeParser.parse("f /tmp")
+func filePrefixWithPathUsesPathMode() {
+    let fileURL = SearchModeParser.parse("f file:///Users/x/.artifacts/plan.html")
+    #expect(fileURL.mode == .path)
+    #expect(fileURL.query == "file:///Users/x/.artifacts/plan.html")
 
-    #expect(parsed.mode == .files)
-    #expect(parsed.query == "/tmp")
+    let absolute = SearchModeParser.parse("f  /tmp/a  b.txt ")
+    #expect(absolute.mode == .path)
+    #expect(absolute.query == "/tmp/a  b.txt")
+
+    let upper = SearchModeParser.parse("F ~/Downloads")
+    #expect(upper.mode == .path)
+    #expect(upper.query == "~/Downloads")
+
+    let directory = SearchModeParser.parse("d ~/src/")
+    #expect(directory.mode == .path)
+    #expect(directory.query == "~/src/")
+}
+
+@Test
+func filePrefixWithNameStaysFilesMode() {
+    let files = SearchModeParser.parse("f design doc")
+    #expect(files.mode == .files)
+    #expect(files.query == "design doc")
+
+    let directories = SearchModeParser.parse("d down")
+    #expect(directories.mode == .directories)
+    #expect(directories.query == "down")
+
+    let tildeName = SearchModeParser.parse("f ~notes")
+    #expect(tildeName.mode == .files)
+    #expect(tildeName.query == "~notes")
 }
