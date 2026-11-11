@@ -35,7 +35,7 @@ shortcuts can control other apps.
 - `gi ` searches issues in repositories owned by you and your GitHub organizations when `gh` is available.
 - `gp ` searches pull requests in repositories owned by you and your GitHub organizations when `gh` is available.
 - `ghq ` searches only local `ghq list` entries.
-- Typing or pasting a file path (starting with `/`, `~`, or `file://`) shows that file with `Open` and `Copy File` actions; a path ending in `/` also lists the folder contents, and a partial name lists matching entries.
+- Typing or pasting a file path (starting with `/`, `~`, or `file://`) shows that file with `Open` and `Copy File` actions; a path ending in `/` also lists the folder contents, and a partial name lists matching entries. A path typed after `f ` or `d ` is handled the same way.
 - `l ` searches Linear issues. On first use, Sagasu asks for a personal Linear API key and stores it in macOS Keychain.
 
 When Sagasu opens with an empty query, recently modified folders are mixed near the top of the default application list. This makes recent work folders available immediately without switching modes. If you type `f ` first, Sagasu switches to folder/file mode and only folder/file results are shown.
