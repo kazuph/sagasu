@@ -10,6 +10,9 @@ struct ApplicationSearchService: @unchecked Sendable {
         let normalizedSearchTerms: String
     }
 
+    static let recentApplicationLimit = 8
+    static let recentSubtitlePrefix = "最近使った · "
+
     private let fileManager: FileManager
     private let roots: [URL]
     private let preferredLanguages: [String]
@@ -48,11 +51,8 @@ struct ApplicationSearchService: @unchecked Sendable {
                 return nil
             }
 
-            let usageBoost = usageHistoryStore
-                .flatMap { $0.lastUsedAt(for: UsageHistoryKey.application(application.url)) }
-                .map { lastUsedAt in
-                    max(0, 240 - Int(now.timeIntervalSince(lastUsedAt) / 86_400))
-                } ?? 0
+            let usageBoost = usageHistoryStore?
+                .recencyBoost(for: UsageHistoryKey.application(application.url), now: now) ?? 0
 
             let result = SearchResult(
                 title: application.name,
@@ -62,6 +62,35 @@ struct ApplicationSearchService: @unchecked Sendable {
                 action: .launchApplication(application.url)
             )
             return (result, score + usageBoost)
+        }
+
+        if normalizedQuery.isEmpty, let usageHistoryStore {
+            let applicationsByPath = Dictionary(applications.map { ($0.url.path, $0) }, uniquingKeysWith: { first, _ in first })
+            let recentApplications = usageHistoryStore
+                .recentKeys(withPrefix: UsageHistoryKey.applicationPrefix)
+                .compactMap { key in
+                    UsageHistoryKey.path(fromKey: key, prefix: UsageHistoryKey.applicationPrefix)
+                        .flatMap { applicationsByPath[$0] }
+                }
+                .prefix(Self.recentApplicationLimit)
+            let recentPaths = Set(recentApplications.map(\.url.path))
+            ranked.removeAll { entry in
+                if case .launchApplication(let url) = entry.0.action { return recentPaths.contains(url.path) }
+                return false
+            }
+            let top = recentApplications.enumerated().map { index, application in
+                (
+                    SearchResult(
+                        title: application.name,
+                        subtitle: Self.recentSubtitlePrefix + application.bundleIdentifier,
+                        detail: application.url.path,
+                        visual: .fileIcon(application.url),
+                        action: .launchApplication(application.url)
+                    ),
+                    1_000_000 - index
+                )
+            }
+            ranked.append(contentsOf: top)
         }
 
         ranked.append(contentsOf: additionalResults.compactMap { result in

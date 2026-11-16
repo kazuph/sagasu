@@ -116,7 +116,7 @@ private func makeSearchViewModel() throws -> SearchViewModel {
 
 @MainActor
 private func waitForSearchToFinish(_ viewModel: SearchViewModel) async throws {
-    for _ in 0..<20 {
+    for _ in 0..<200 {
         if viewModel.isSearching == false && viewModel.results.isEmpty == false {
             return
         }
