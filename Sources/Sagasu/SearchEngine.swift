@@ -83,16 +83,28 @@ struct SearchEngine {
             return mergedResults
         case .directories:
             let fileSearchService = self.fileSearchService
+            let usageHistoryStore = self.usageHistoryStore
             let query = parsedQuery.query
-            return await Task.detached(priority: .userInitiated) {
-                fileSearchService.searchDirectories(query: query)
-            }.value
+            let task = Task.detached(priority: .userInitiated) {
+                fileSearchService.searchDirectories(query: query, usageHistoryStore: usageHistoryStore)
+            }
+            return await withTaskCancellationHandler {
+                await task.value
+            } onCancel: {
+                task.cancel()
+            }
         case .files:
             let fileSearchService = self.fileSearchService
+            let usageHistoryStore = self.usageHistoryStore
             let query = parsedQuery.query
-            return try await Task.detached(priority: .userInitiated) {
-                try fileSearchService.search(query: query)
-            }.value
+            let task = Task.detached(priority: .userInitiated) {
+                try fileSearchService.search(query: query, usageHistoryStore: usageHistoryStore)
+            }
+            return try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                task.cancel()
+            }
         case .terminals:
             guard let herdrSearchService else { return [] }
             let query = parsedQuery.query

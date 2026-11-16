@@ -23,9 +23,9 @@ shortcuts can control other apps.
 
 ## Search prefixes
 
-- `f ` searches files and folders. Common directories such as Downloads, Documents, Music, Movies, and Pictures are prioritized, so `f d` can quickly open Downloads or Documents.
-- `F ` with no query shows recently modified folders.
-- `d ` searches directories only.
+- `f ` searches files and folders across your whole home folder with Spotlight. Common directories such as Downloads, Documents, Music, Movies, and Pictures are prioritized, so `f d` can quickly open Downloads or Documents. Hidden paths, `~/Library` (except CloudStorage, iCloud Drive, and Recent Places), `node_modules`, and the insides of packages such as `.app` bundles are excluded.
+- `f ` with no query shows recently opened files and folders first (prefixed with `最近使った · `), then recently modified folders.
+- `d ` searches directories only, with the same scope and exclusions as `f `. With no query it shows recently opened folders first, then recently modified folders.
 - `t ` searches Herdr panes by project directory, agent, status, workspace, or pane id. Pressing `Return` focuses that Herdr pane and activates the terminal app.
 - `n ` searches Apple Notes titles.
 - `v ` searches clipboard text and image history.
@@ -47,8 +47,9 @@ Linear search results open in Chrome. Sagasu calls Linear's GraphQL API directly
 ## History behavior
 
 - Clipboard entries move upward after they are restored, and Sagasu sends `Command-V` after selection so the restored entry is pasted into the previously active app.
-- Applications move upward after they are launched from Sagasu.
-- Opened file and folder URLs are recorded for future ranking.
+- Applications launched from Sagasu, and files and folders opened from Sagasu, are recorded with their last-used time.
+- Ranking boost for recently used items is 500 on the day of use, drops by 10 per day, and reaches 0 after 50 days. It applies to application search and to `f ` / `d ` results.
+- With an empty query, the 8 most recently launched applications (and the 10 most recently opened files or folders for `f ` / `d `) appear first, prefixed with `最近使った · ` in the subtitle.
 - Clipboard entries are kept for at least 3 months even when the count limit is exceeded. Reusing an entry extends it to 6 months from last use. Pinned entries do not expire.
 
 ## Clipboard commands
