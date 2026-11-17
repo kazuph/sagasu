@@ -7,7 +7,7 @@ struct FileSearchService: Sendable {
     static let spotlightTimeLimit: TimeInterval = 2.5
     private static let mdfindURL = URL(fileURLWithPath: "/usr/bin/mdfind")
     static let recentItemLimit = 10
-    static let recentSubtitlePrefix = "最近使った · "
+    static let recentSubtitlePrefix = UsageHistoryStore.recentSubtitlePrefix
     private static let unmatchedBaseScore = 100
 
     private let scopes: [URL]

@@ -11,7 +11,15 @@ struct ApplicationSearchService: @unchecked Sendable {
     }
 
     static let recentApplicationLimit = 8
-    static let recentSubtitlePrefix = "最近使った · "
+    static let recentSubtitlePrefix = UsageHistoryStore.recentSubtitlePrefix
+
+    /// 実在を確かめるべき履歴キー（ファイル・フォルダ）のパス。それ以外は nil。
+    private static func filePath(forKey key: String) -> String? {
+        if let path = UsageHistoryKey.path(fromKey: key, prefix: UsageHistoryKey.urlPrefix), path.hasPrefix("/") {
+            return path
+        }
+        return UsageHistoryKey.path(fromKey: key, prefix: "copyfile:")
+    }
 
     private let fileManager: FileManager
     private let roots: [URL]
@@ -28,6 +36,7 @@ struct ApplicationSearchService: @unchecked Sendable {
         limit: Int = 40,
         usageHistoryStore: UsageHistoryStore? = nil,
         additionalResults: [SearchResult] = [],
+        legacyLookupResults: [SearchResult] = [],
         runningBundleIdentifiers providedRunningBundleIdentifiers: Set<String>? = nil
     ) -> [SearchResult] {
         let applications = Self.loadApplications(fileManager: fileManager, roots: roots, preferredLanguages: preferredLanguages)
@@ -64,36 +73,67 @@ struct ApplicationSearchService: @unchecked Sendable {
             return (result, score + usageBoost)
         }
 
+        var shownRecentKeys = Set<String>()
         if normalizedQuery.isEmpty, let usageHistoryStore {
             let applicationsByPath = Dictionary(applications.map { ($0.url.path, $0) }, uniquingKeysWith: { first, _ in first })
-            let recentApplications = usageHistoryStore
-                .recentKeys(withPrefix: UsageHistoryKey.applicationPrefix)
-                .compactMap { key in
-                    UsageHistoryKey.path(fromKey: key, prefix: UsageHistoryKey.applicationPrefix)
-                        .flatMap { applicationsByPath[$0] }
+            // 写しの無い古い記録（設定など）は、設定の一覧と url: キーで照合する。
+            let legacyByKey: [String: SearchResult] = Dictionary(
+                legacyLookupResults.compactMap { result in
+                    UsageHistoryKey.key(for: result.action).map { ($0, result) }
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+            var recentApplicationPaths = Set<String>()
+            var shownRecentDetails = Set<String>()
+            var recentResults: [SearchResult] = []
+            for entry in usageHistoryStore.recentEntries() {
+                if recentResults.count >= Self.recentApplicationLimit { break }
+                let key = entry.key
+                if let path = UsageHistoryKey.path(fromKey: key, prefix: UsageHistoryKey.applicationPrefix) {
+                    // f で .app を開いた記録（url:）と同じアプリを2回出さない。
+                    guard let application = applicationsByPath[path],
+                          shownRecentDetails.insert(application.url.path).inserted else { continue }
+                    recentApplicationPaths.insert(path)
+                    recentResults.append(
+                        SearchResult(
+                            title: application.name,
+                            subtitle: Self.recentSubtitlePrefix + application.bundleIdentifier,
+                            detail: application.url.path,
+                            visual: .fileIcon(application.url),
+                            action: .launchApplication(application.url)
+                        )
+                    )
+                } else if let snapshot = usageHistoryStore.snapshot(for: key) {
+                    if let filePath = Self.filePath(forKey: key), fileManager.fileExists(atPath: filePath) == false { continue }
+                    if Self.filePath(forKey: key) != nil,
+                       shownRecentDetails.insert(snapshot.detail).inserted == false { continue }
+                    recentResults.append(snapshot.makeResult(subtitlePrefix: Self.recentSubtitlePrefix))
+                } else if let legacy = legacyByKey[key] {
+                    recentResults.append(
+                        SearchResult(
+                            title: legacy.title,
+                            subtitle: Self.recentSubtitlePrefix + legacy.subtitle,
+                            detail: legacy.detail,
+                            visual: legacy.visual,
+                            action: legacy.action,
+                            searchTerms: legacy.searchTerms
+                        )
+                    )
+                } else {
+                    continue
                 }
-                .prefix(Self.recentApplicationLimit)
-            let recentPaths = Set(recentApplications.map(\.url.path))
+                shownRecentKeys.insert(key)
+            }
             ranked.removeAll { entry in
-                if case .launchApplication(let url) = entry.0.action { return recentPaths.contains(url.path) }
+                if case .launchApplication(let url) = entry.0.action { return recentApplicationPaths.contains(url.path) }
                 return false
             }
-            let top = recentApplications.enumerated().map { index, application in
-                (
-                    SearchResult(
-                        title: application.name,
-                        subtitle: Self.recentSubtitlePrefix + application.bundleIdentifier,
-                        detail: application.url.path,
-                        visual: .fileIcon(application.url),
-                        action: .launchApplication(application.url)
-                    ),
-                    1_000_000 - index
-                )
-            }
-            ranked.append(contentsOf: top)
+            ranked.append(contentsOf: recentResults.enumerated().map { ($0.element, 1_000_000 - $0.offset) })
         }
 
         ranked.append(contentsOf: additionalResults.compactMap { result in
+            let historyKey = UsageHistoryKey.key(for: result.action)
+            if let historyKey, shownRecentKeys.contains(historyKey) { return nil }
             let score: Int
             if normalizedQuery.isEmpty {
                 score = 500
@@ -107,7 +147,10 @@ struct ApplicationSearchService: @unchecked Sendable {
                 return nil
             }
 
-            return (result, score)
+            let usageBoost = historyKey.flatMap { key in
+                usageHistoryStore?.recencyBoost(for: key, now: now)
+            } ?? 0
+            return (result, score + usageBoost)
         })
 
         return ranked

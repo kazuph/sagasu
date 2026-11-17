@@ -73,7 +73,7 @@ final class SearchViewModel: ObservableObject {
         }
     }
 
-    var actionHandler: ((SearchAction) -> Void)?
+    var actionHandler: ((SearchResult) -> Void)?
     var clipboardPinToggleHandler: ((UUID) throws -> Void)?
     var clipboardDeleteHandler: ((UUID) throws -> Void)?
     var linearAPIKeyNeededHandler: (() -> Void)?
@@ -114,8 +114,8 @@ final class SearchViewModel: ObservableObject {
     }
 
     func activateSelectedResult() {
-        guard let action = results[safe: selectedIndex]?.action else { return }
-        actionHandler?(action)
+        guard let result = results[safe: selectedIndex] else { return }
+        actionHandler?(result)
     }
 
     func activatePrefix(_ prefix: String) {
