@@ -1,6 +1,6 @@
 import Foundation
 
-enum SearchAction: Hashable, Sendable {
+enum SearchAction: Hashable, Sendable, Codable {
     case launchApplication(URL)
     case openURL(URL)
     case openURLInPreferredBrowser(URL, bundleIdentifier: String)
@@ -14,7 +14,7 @@ enum SearchAction: Hashable, Sendable {
     case copyFile(URL)
 }
 
-enum SearchResultVisual: Hashable, Sendable {
+enum SearchResultVisual: Hashable, Sendable, Codable {
     case symbol(String)
     case fileIcon(URL)
     case imageThumbnail(URL)

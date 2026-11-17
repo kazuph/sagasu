@@ -49,8 +49,8 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         self.searchEngine = searchEngine
         self.searchViewModel = SearchViewModel(searchEngine: searchEngine)
         super.init()
-        self.searchViewModel.actionHandler = { [weak self] action in
-            self?.perform(action: action)
+        self.searchViewModel.actionHandler = { [weak self] result in
+            self?.perform(result: result)
         }
         self.searchViewModel.clipboardPinToggleHandler = { [weak self] entryID in
             try self?.clipboardStore.togglePin(entryID: entryID)
@@ -401,7 +401,8 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         NSApp.presentError(error)
     }
 
-    private func perform(action: SearchAction) {
+    private func perform(result: SearchResult) {
+        let action = result.action
         do {
             switch action {
             case .launchApplication(let url):
@@ -415,18 +416,18 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
                 try NotesSearchService.openNote(withID: noteID)
             case .restoreClipboard(let entryID):
                 try clipboardStore.restore(entryID: entryID)
-                try? searchEngine.markUsed(action: action)
+                try? searchEngine.markUsed(result: result)
                 hideLauncher()
                 pasteRestoredClipboardSoon()
                 return
             case .saveClipboardImage:
                 Task { @MainActor [weak self] in
-                    self?.saveClipboardImage()
+                    self?.saveClipboardImage(result: result)
                 }
                 return
             case .extractTextFromClipboardImage:
                 Task { @MainActor [weak self] in
-                    await self?.extractTextFromClipboardImage()
+                    await self?.extractTextFromClipboardImage(result: result)
                 }
                 return
             case .focusTerminalPane(let paneID):
@@ -440,7 +441,7 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
             case .copyFile(let url):
                 try Self.copyFile(url, to: .general)
             }
-            try? searchEngine.markUsed(action: action)
+            try? searchEngine.markUsed(result: result)
             hideLauncher()
         } catch {
             searchViewModel.present(error: error)
@@ -511,10 +512,10 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         keyUp?.post(tap: .cghidEventTap)
     }
 
-    private func saveClipboardImage() {
+    private func saveClipboardImage(result: SearchResult) {
         do {
             let savedImageURL = try clipboardImageTextService.saveClipboardImage()
-            try? searchEngine.markUsed(action: .saveClipboardImage)
+            try? searchEngine.markUsed(result: result)
             hideLauncher()
             NSWorkspace.shared.activateFileViewerSelecting([savedImageURL])
         } catch {
@@ -522,11 +523,11 @@ final class AppCoordinator: NSObject, ObservableObject, NSMenuDelegate {
         }
     }
 
-    private func extractTextFromClipboardImage() async {
+    private func extractTextFromClipboardImage(result: SearchResult) async {
         do {
             let recognizedText = try await clipboardImageTextService.extractTextFromClipboardImage()
             try clipboardStore.addTextEntry(recognizedText, writingToPasteboard: true)
-            try? searchEngine.markUsed(action: .extractTextFromClipboardImage)
+            try? searchEngine.markUsed(result: result)
             hideLauncher()
         } catch {
             searchViewModel.present(error: error)

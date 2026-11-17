@@ -48,6 +48,34 @@ struct SearchEngine {
 
     @MainActor
     func search(for parsedQuery: ParsedSearchQuery) async throws -> [SearchResult] {
+        let results = try await rawSearch(for: parsedQuery)
+        switch parsedQuery.mode {
+        case .githubOwnedRepositories, .githubGlobalRepositories, .githubIssues, .githubPullRequests,
+             .ghqRepositories, .linearIssues, .notes, .terminals, .path:
+            return Self.promoteUsed(results, usageHistoryStore: usageHistoryStore)
+        case .applications, .directories, .files, .clipboard:
+            return results
+        }
+    }
+
+    /// 履歴のある項目を最終利用が新しい順に先頭へ寄せる。履歴の無い項目は元の順を保つ。
+    static func promoteUsed(_ results: [SearchResult], usageHistoryStore: UsageHistoryStore) -> [SearchResult] {
+        let dated: [(index: Int, result: SearchResult, date: Date?)] = results.enumerated().map { index, result in
+            let date = UsageHistoryKey.key(for: result.action).flatMap { usageHistoryStore.lastUsedAt(for: $0) }
+            return (index, result, date)
+        }
+        let used = dated
+            .filter { $0.date != nil }
+            .sorted { lhs, rhs in
+                if lhs.date! != rhs.date! { return lhs.date! > rhs.date! }
+                return lhs.index < rhs.index
+            }
+        let unused = dated.filter { $0.date == nil }
+        return (used + unused).map(\.result)
+    }
+
+    @MainActor
+    private func rawSearch(for parsedQuery: ParsedSearchQuery) async throws -> [SearchResult] {
         switch parsedQuery.mode {
         case .applications:
             let clipboardImageResults = await MainActor.run {
@@ -57,6 +85,7 @@ struct SearchEngine {
                 + (parsedQuery.query.isEmpty ? [] : macOSSettingsSearchService.results())
             let applicationSearchService = self.applicationSearchService
             let usageHistoryStore = self.usageHistoryStore
+            let legacyLookupResults = parsedQuery.query.isEmpty ? macOSSettingsSearchService.results() : []
             let query = parsedQuery.query
             let runningBundleIdentifiers = await MainActor.run {
                 Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
@@ -66,12 +95,17 @@ struct SearchEngine {
                     query: query,
                     usageHistoryStore: usageHistoryStore,
                     additionalResults: additionalResults,
+                    legacyLookupResults: legacyLookupResults,
                     runningBundleIdentifiers: runningBundleIdentifiers
                 )
             }.value
             if parsedQuery.query.isEmpty { return appResults }
 
-            let webResults = webRouteSearchService.search(query: parsedQuery.query)
+            // Web ルートは差し込み位置を変えず、その中だけ最近使った順に寄せる。
+            let webResults = Self.promoteUsed(
+                webRouteSearchService.search(query: parsedQuery.query),
+                usageHistoryStore: usageHistoryStore
+            )
             let calculatorResults = calculatorSearchService.search(query: parsedQuery.query)
             guard webResults.isEmpty == false || calculatorResults.isEmpty == false else { return appResults }
 
@@ -173,14 +207,14 @@ struct SearchEngine {
         linearSearchService.hasAPIKey()
     }
 
+    /// 選んだ項目を履歴に記録する。表示内容の写しも一緒に保存する。restoreClipboard は記録しない。
+    func markUsed(result: SearchResult) throws {
+        guard let key = UsageHistoryKey.key(for: result.action) else { return }
+        try usageHistoryStore.markUsed(key: key, snapshot: UsageHistoryStore.Snapshot(result: result))
+    }
+
     func markUsed(action: SearchAction) throws {
-        switch action {
-        case .launchApplication(let url):
-            try usageHistoryStore.markUsed(key: UsageHistoryKey.application(url))
-        case .openURL(let url):
-            try usageHistoryStore.markUsed(key: UsageHistoryKey.url(url))
-        case .openURLInPreferredBrowser, .openNote, .restoreClipboard, .saveClipboardImage, .extractTextFromClipboardImage, .focusTerminalPane, .configureLinearAPIKey, .copyText, .copyFile:
-            return
-        }
+        guard let key = UsageHistoryKey.key(for: action) else { return }
+        try usageHistoryStore.markUsed(key: key)
     }
 }
